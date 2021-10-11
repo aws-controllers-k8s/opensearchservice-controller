@@ -1,0 +1,17 @@
+model_name: opensearch
+ignore:
+  resource_names:
+    - Package
+    # - Domain
+    - OutboundConnection
+  field_paths:
+    # SnapshotOptions is irrelevant for OpenSearch 5.3+
+    - CreateDomainInput.SnapshotOptions
+resources:
+  Domain:
+    exceptions:
+      errors:
+        404:
+          code: ResourceNotFoundException
+      terminal_codes:
+        - ValidationException

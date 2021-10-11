@@ -1,0 +1,29 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  creationTimestamp: null
+  name: ack-opensearchservice-writer
+  namespace: {{ .Release.Namespace }}
+rules:
+- apiGroups:
+  - opensearchservice.services.k8s.aws
+  resources:
+  - domains
+
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - opensearchservice.services.k8s.aws
+  resources:
+  - domains
+  verbs:
+  - get
+  - patch
+  - update
