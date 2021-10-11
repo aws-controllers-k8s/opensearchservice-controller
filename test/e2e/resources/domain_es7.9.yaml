@@ -1,0 +1,13 @@
+apiVersion: opensearchservice.services.k8s.aws/v1alpha1
+kind: Domain
+metadata:
+  name: $DOMAIN_NAME
+spec:
+  domainName: $DOMAIN_NAME
+  engineVersion: "Elasticsearch_7.9"
+  # EBSOptions is required for default OpenSearch domain instance type
+  # m4.large.search
+  ebsOptions:
+    ebsEnabled: true
+    volumeSize: 10
+    volumeType: gp2
