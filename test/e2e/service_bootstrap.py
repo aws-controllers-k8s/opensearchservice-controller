@@ -20,14 +20,20 @@ from acktest.bootstrapping import Resources, BootstrapFailureException
 from e2e import bootstrap_directory
 from e2e.bootstrap_resources import (
     BootstrapResources,
-    VPC
+    VPC,
+    ServiceLinkedRole
 )
 
 def service_bootstrap() -> Resources:
     logging.getLogger().setLevel(logging.INFO)
     
     resources = BootstrapResources(
-        VPC=VPC(name_prefix="opensearch-vpc", num_private_subnet=2)
+        VPC=VPC(name_prefix="opensearch-vpc", num_private_subnet=2),
+        SLR=ServiceLinkedRole(
+            aws_service_name="opensearchservice.amazonaws.com",
+            default_name="AWSServiceRoleForAmazonOpenSearchService",
+            description="An SLR to allow Amazon OpenSearch Service to work within a private VPC"
+        )
     )
 
     try:
