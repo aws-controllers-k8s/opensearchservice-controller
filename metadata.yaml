@@ -1,0 +1,8 @@
+service:
+  full_name: "Amazon OpenSearch Service"
+  short_name: "OpenSearch"
+  link: "https://aws.amazon.com/opensearch-service/"
+  documentation: "https://docs.aws.amazon.com/opensearch-service/latest/developerguide/what-is.html"
+api_versions:
+  - api_version: v1alpha1
+    status: available
