@@ -17,6 +17,7 @@ package domain
 
 import (
 	"context"
+	"reflect"
 	"strings"
 
 	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
@@ -42,6 +43,7 @@ var (
 	_ = ackv1alpha1.AWSAccountID("")
 	_ = &ackerr.NotFound
 	_ = &ackcondition.NotManagedMessage
+	_ = &reflect.Value{}
 )
 
 // sdkFind returns SDK-specific information about a supplied resource
@@ -803,7 +805,7 @@ func (rm *resourceManager) newCreateRequestPayload(
 		res.SetAdvancedOptions(f1)
 	}
 	if r.ko.Spec.AdvancedSecurityOptions != nil {
-		f2 := &svcsdk.AdvancedSecurityOptionsInput_{}
+		f2 := &svcsdk.AdvancedSecurityOptionsInput{}
 		if r.ko.Spec.AdvancedSecurityOptions.Enabled != nil {
 			f2.SetEnabled(*r.ko.Spec.AdvancedSecurityOptions.Enabled)
 		}
@@ -824,7 +826,7 @@ func (rm *resourceManager) newCreateRequestPayload(
 			f2.SetMasterUserOptions(f2f2)
 		}
 		if r.ko.Spec.AdvancedSecurityOptions.SAMLOptions != nil {
-			f2f3 := &svcsdk.SAMLOptionsInput_{}
+			f2f3 := &svcsdk.SAMLOptionsInput{}
 			if r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.Enabled != nil {
 				f2f3.SetEnabled(*r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.Enabled)
 			}
@@ -858,7 +860,7 @@ func (rm *resourceManager) newCreateRequestPayload(
 		res.SetAdvancedSecurityOptions(f2)
 	}
 	if r.ko.Spec.AutoTuneOptions != nil {
-		f3 := &svcsdk.AutoTuneOptionsInput_{}
+		f3 := &svcsdk.AutoTuneOptionsInput{}
 		if r.ko.Spec.AutoTuneOptions.DesiredState != nil {
 			f3.SetDesiredState(*r.ko.Spec.AutoTuneOptions.DesiredState)
 		}
