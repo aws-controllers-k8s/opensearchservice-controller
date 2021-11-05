@@ -402,6 +402,14 @@ func (rm *resourceManager) sdkFind(
 	}
 
 	rm.setStatusDefaults(ko)
+	if domainProcessing(&resource{ko}) {
+		// Setting resource synced condition to false will trigger a requeue of
+		// the resource. No need to return a requeue error here.
+		setSyncedCondition(&resource{ko}, corev1.ConditionFalse, nil, nil)
+	} else {
+		setSyncedCondition(&resource{ko}, corev1.ConditionTrue, nil, nil)
+	}
+
 	return &resource{ko}, nil
 }
 
@@ -779,6 +787,13 @@ func (rm *resourceManager) sdkCreate(
 	}
 
 	rm.setStatusDefaults(ko)
+	if domainProcessing(&resource{ko}) {
+		// Setting resource synced condition to false will trigger a requeue of
+		// the resource. No need to return a requeue error here.
+		setSyncedCondition(&resource{ko}, corev1.ConditionFalse, nil, nil)
+		return &resource{ko}, nil
+	}
+
 	return &resource{ko}, nil
 }
 
@@ -1081,6 +1096,10 @@ func (rm *resourceManager) sdkDelete(
 	rlog := ackrtlog.FromContext(ctx)
 	exit := rlog.Trace("rm.sdkDelete")
 	defer exit(err)
+	if domainProcessing(r) {
+		return r, requeueWaitWhileProcessing
+	}
+
 	input, err := rm.newDeleteRequestPayload(r)
 	if err != nil {
 		return nil, err

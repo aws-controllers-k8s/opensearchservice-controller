@@ -15,3 +15,12 @@ resources:
           code: ResourceNotFoundException
       terminal_codes:
         - ValidationException
+    hooks:
+      sdk_create_post_set_output:
+        template_path: hooks/domain/sdk_create_post_set_output.go.tpl
+      sdk_read_one_post_set_output:
+        template_path: hooks/domain/sdk_read_one_post_set_output.go.tpl
+      sdk_update_pre_build_request:
+        template_path: hooks/domain/sdk_update_pre_build_request.go.tpl
+      sdk_delete_pre_build_request:
+        template_path: hooks/domain/sdk_delete_pre_build_request.go.tpl

@@ -14,28 +14,28 @@
 """Integration tests for the OpenSearchService API Domain resource
 """
 
-import boto3
-import datetime
-import pytest
+from dataclasses import dataclass, field
 import logging
 import time
 from typing import Dict
 
 from acktest.k8s import resource as k8s
+import pytest
 
+from e2e import condition
+from e2e import domain
 from e2e import service_marker, CRD_GROUP, CRD_VERSION, load_opensearch_resource
 from e2e.replacement_values import REPLACEMENT_VALUES
-from dataclasses import dataclass, field
 from e2e.bootstrap_resources import BootstrapResources, get_bootstrap_resources
 
 RESOURCE_PLURAL = 'domains'
 
-DELETE_WAIT_INTERVAL_SLEEP_SECONDS = 20
 DELETE_WAIT_AFTER_SECONDS = 30
-DELETE_TIMEOUT_SECONDS = 10*60
 
-CREATE_WAIT_INTERVAL_SLEEP_SECONDS = 20
-CREATE_TIMEOUT_SECONDS = 30*60
+# This is the time to wait *after* the domain returns Processing=False from the
+# Opensearch DescribeDomain API call and before we check to see that the CR's
+# Status.Conditions contains a True ResourceSynced condition.
+CHECK_STATUS_WAIT_SECONDS = 60
 
 
 @dataclass
@@ -48,34 +48,11 @@ class Domain:
     vpc_id: str = None
     vpc_subnets: list = field(default_factory=list)
 
+
 @pytest.fixture(scope="module")
 def resources():
     return get_bootstrap_resources()
 
-def wait_for_create_or_die(os_client, resource, timeout):
-    aws_res = os_client.describe_domain(DomainName=resource.name)
-    while aws_res['DomainStatus']['Processing'] == True:
-        if datetime.datetime.now() >= timeout:
-            pytest.fail("Timed out waiting for OpenSearch Domain to get DomainStatus.Processing == False")
-        time.sleep(CREATE_WAIT_INTERVAL_SLEEP_SECONDS)
-
-        aws_res = os_client.describe_domain(DomainName=resource.name)
-
-    return aws_res
-
-
-def wait_for_delete_or_die(os_client, resource, timeout):
-    while True:
-        if datetime.datetime.now() >= timeout:
-            pytest.fail("Timed out waiting for OpenSearch Domain to being deleted in OpenSearchService API")
-        time.sleep(DELETE_WAIT_INTERVAL_SLEEP_SECONDS)
-
-        try:
-            aws_res = os_client.describe_domain(DomainName=resource.name)
-            if aws_res['DomainStatus']['Deleted'] == False:
-                pytest.fail("DomainStatus.Deleted is False for OpenSearch Domain that was deleted.")
-        except os_client.exceptions.ResourceNotFoundException:
-            break
 
 @pytest.fixture
 def es_7_9_domain(os_client):
@@ -88,7 +65,6 @@ def es_7_9_domain(os_client):
         "domain_es7.9",
         additional_replacements=replacements,
     )
-    logging.debug(resource_data)
 
     # Create the k8s resource
     ref = k8s.CustomResourceReference(
@@ -96,20 +72,8 @@ def es_7_9_domain(os_client):
         resource.name, namespace="default",
     )
     k8s.create_custom_resource(ref, resource_data)
-    cr = k8s.wait_resource_consumed_by_controller(ref)
-
-    assert cr is not None
-    assert k8s.get_resource_exists(ref)
-
-    logging.debug(cr)
-
-    # Let's check that the domain appears in OpenSearchService
-    aws_res = os_client.describe_domain(DomainName=resource.name)
-
-    logging.debug(aws_res)
-
-    now = datetime.datetime.now()
-    timeout = now + datetime.timedelta(seconds=CREATE_TIMEOUT_SECONDS)
+    k8s.wait_resource_consumed_by_controller(ref)
+    condition.assert_not_synced(ref)
 
     # An OpenSerach Domain gets its `DomainStatus.Created` field set to
     # `True` almost immediately, however the `DomainStatus.Processing` field
@@ -122,10 +86,14 @@ def es_7_9_domain(os_client):
     # Processing = False and then another 2 minutes or so after calling
     # DeleteDomain for the OpenSearch Domain to no longer appear in
     # DescribeDomain API call.
-    aws_res = wait_for_create_or_die(os_client, resource, timeout)
+    domain.wait_until(ref.name, domain.processing_matches(False))
+
     logging.info(f"ES Domain {resource.name} creation succeeded and DomainStatus.Processing is now False")
 
-    yield (resource, aws_res)
+    time.sleep(CHECK_STATUS_WAIT_SECONDS)
+    condition.assert_synced(ref)
+
+    yield resource
 
     # Delete the k8s resource on teardown of the module
     k8s.delete_custom_resource(ref)
@@ -133,11 +101,9 @@ def es_7_9_domain(os_client):
     logging.info(f"Deleted CR for OpenSearch Domain {resource.name}. Waiting {DELETE_WAIT_AFTER_SECONDS} before checking existence in AWS API")
     time.sleep(DELETE_WAIT_AFTER_SECONDS)
 
-    now = datetime.datetime.now()
-    timeout = now + datetime.timedelta(seconds=DELETE_TIMEOUT_SECONDS)
-
     # Domain should no longer appear in OpenSearchService
-    wait_for_delete_or_die(os_client, resource, timeout)
+    domain.wait_until_deleted(ref.name)
+
 
 @pytest.fixture
 def es_2d3m_multi_az_no_vpc_7_9_domain(os_client):
@@ -152,7 +118,6 @@ def es_2d3m_multi_az_no_vpc_7_9_domain(os_client):
         "domain_es_xdym_multi_az7.9",
         additional_replacements=replacements,
     )
-    logging.debug(resource_data)
 
     # Create the k8s resource
     ref = k8s.CustomResourceReference(
@@ -160,25 +125,17 @@ def es_2d3m_multi_az_no_vpc_7_9_domain(os_client):
         resource.name, namespace="default",
     )
     k8s.create_custom_resource(ref, resource_data)
-    cr = k8s.wait_resource_consumed_by_controller(ref)
+    k8s.wait_resource_consumed_by_controller(ref)
+    condition.assert_not_synced(ref)
 
-    assert cr is not None
-    assert k8s.get_resource_exists(ref)
+    domain.wait_until(ref.name, domain.processing_matches(False))
 
-    logging.debug(cr)
-
-    # Let's check that the domain appears in OpenSearchService
-    aws_res = os_client.describe_domain(DomainName=resource.name)
-
-    logging.debug(aws_res)
-
-    now = datetime.datetime.now()
-    timeout = now + datetime.timedelta(seconds=CREATE_TIMEOUT_SECONDS)
-
-    aws_res = wait_for_create_or_die(os_client, resource, timeout)
     logging.info(f"ES Domain {resource.name} creation succeeded and DomainStatus.Processing is now False")
 
-    yield (resource, aws_res)
+    time.sleep(CHECK_STATUS_WAIT_SECONDS)
+    condition.assert_synced(ref)
+
+    yield resource
 
     # Delete the k8s resource on teardown of the module
     k8s.delete_custom_resource(ref)
@@ -186,11 +143,9 @@ def es_2d3m_multi_az_no_vpc_7_9_domain(os_client):
     logging.info(f"Deleted CR for OpenSearch Domain {resource.name}. Waiting {DELETE_WAIT_AFTER_SECONDS} before checking existence in AWS API")
     time.sleep(DELETE_WAIT_AFTER_SECONDS)
 
-    now = datetime.datetime.now()
-    timeout = now + datetime.timedelta(seconds=DELETE_TIMEOUT_SECONDS)
-
     # Domain should no longer appear in OpenSearchService
-    wait_for_delete_or_die(os_client, resource, timeout)
+    domain.wait_until_deleted(ref.name)
+
 
 @pytest.fixture
 def es_2d3m_multi_az_vpc_2_subnet7_9_domain(os_client, resources: BootstrapResources):
@@ -203,8 +158,6 @@ def es_2d3m_multi_az_vpc_2_subnet7_9_domain(os_client, resources: BootstrapResou
         vpc_id=resources.VPC.vpc_id,
         vpc_subnets=resources.VPC.private_subnets.subnet_ids,
     )
-
-    logging.debug(resource)
 
     replacements = REPLACEMENT_VALUES.copy()
     replacements["DOMAIN_NAME"] = resource.name
@@ -224,25 +177,17 @@ def es_2d3m_multi_az_vpc_2_subnet7_9_domain(os_client, resources: BootstrapResou
         resource.name, namespace="default",
     )
     k8s.create_custom_resource(ref, resource_data)
-    cr = k8s.wait_resource_consumed_by_controller(ref)
+    k8s.wait_resource_consumed_by_controller(ref)
+    condition.assert_not_synced(ref)
 
-    assert cr is not None
-    assert k8s.get_resource_exists(ref)
+    domain.wait_until(ref.name, domain.processing_matches(False))
 
-    logging.debug(cr)
-
-    # Let's check that the domain appears in OpenSearchService
-    aws_res = os_client.describe_domain(DomainName=resource.name)
-
-    logging.debug(aws_res)
-
-    now = datetime.datetime.now()
-    timeout = now + datetime.timedelta(seconds=CREATE_TIMEOUT_SECONDS)
-
-    aws_res = wait_for_create_or_die(os_client, resource, timeout)
     logging.info(f"OpenSearch Domain {resource.name} creation succeeded and DomainStatus.Processing is now False")
 
-    yield (resource, aws_res)
+    time.sleep(CHECK_STATUS_WAIT_SECONDS)
+    condition.assert_synced(ref)
+
+    yield resource
 
     # Delete the k8s resource on teardown of the module
     k8s.delete_custom_resource(ref)
@@ -250,25 +195,27 @@ def es_2d3m_multi_az_vpc_2_subnet7_9_domain(os_client, resources: BootstrapResou
     logging.info(f"Deleted CR for OpenSearch Domain {resource.name}. Waiting {DELETE_WAIT_AFTER_SECONDS} before checking existence in AWS API")
     time.sleep(DELETE_WAIT_AFTER_SECONDS)
 
-    now = datetime.datetime.now()
-    timeout = now + datetime.timedelta(seconds=DELETE_TIMEOUT_SECONDS)
-
     # Domain should no longer appear in OpenSearchService
-    wait_for_delete_or_die(os_client, resource, timeout)
+    domain.wait_until_deleted(ref.name)
+
 
 @service_marker
 @pytest.mark.canary
 class TestDomain:
     def test_create_delete_es_7_9(self, es_7_9_domain):
-        (resource, aws_res) = es_7_9_domain
+        resource = es_7_9_domain
+
+        aws_res = domain.get(resource.name)
 
         assert aws_res['DomainStatus']['EngineVersion'] == 'Elasticsearch_7.9'
         assert aws_res['DomainStatus']['Created'] == True
         assert aws_res['DomainStatus']['ClusterConfig']['InstanceCount'] == resource.data_node_count
-        assert aws_res['DomainStatus']['ClusterConfig']['ZoneAwarenessEnabled'] == resource.is_zone_aware    
+        assert aws_res['DomainStatus']['ClusterConfig']['ZoneAwarenessEnabled'] == resource.is_zone_aware
 
     def test_create_delete_es_2d3m_multi_az_no_vpc_7_9(self, es_2d3m_multi_az_no_vpc_7_9_domain):
-        (resource, aws_res) = es_2d3m_multi_az_no_vpc_7_9_domain
+        resource = es_2d3m_multi_az_no_vpc_7_9_domain
+
+        aws_res = domain.get(resource.name)
 
         assert aws_res['DomainStatus']['EngineVersion'] == 'Elasticsearch_7.9'
         assert aws_res['DomainStatus']['Created'] == True
@@ -277,7 +224,9 @@ class TestDomain:
         assert aws_res['DomainStatus']['ClusterConfig']['ZoneAwarenessEnabled'] == resource.is_zone_aware
 
     def test_create_delete_es_2d3m_multi_az_vpc_2_subnet7_9(self, es_2d3m_multi_az_vpc_2_subnet7_9_domain):
-        (resource, aws_res) = es_2d3m_multi_az_vpc_2_subnet7_9_domain
+        resource = es_2d3m_multi_az_vpc_2_subnet7_9_domain
+
+        aws_res = domain.get(resource.name)
 
         assert aws_res['DomainStatus']['EngineVersion'] == 'Elasticsearch_7.9'
         assert aws_res['DomainStatus']['Created'] == True
