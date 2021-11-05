@@ -126,3 +126,19 @@ def get(domain_name):
     except c.exceptions.ResourceNotFoundException:
         return None
 
+
+# Apparently, there is an 'endpoint' and an 'endpoints' field for a domain.
+# The 'endpoint' field is filled in with a URL when the domain does *not* use
+# VPC endpoints. The 'endpoints' field is filled in with a map when the domain
+# *does* use VPC endpoints. The following two assertion functions verify this
+# "one or the other" behaviour
+def assert_endpoint(cr):
+    assert 'endpoint' in cr['status']
+    assert cr['status']['endpoint'] != ""
+    assert 'endpoints' not in cr['status'] or len(cr['status']['endpoints']) == 0
+
+
+def assert_endpoints(cr):
+    assert 'endpoint' not in cr['status'] or cr['status']['endpoint'] == ""
+    assert 'endpoints' in cr['status']
+    assert len(cr['status']['endpoints']) > 0
