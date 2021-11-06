@@ -37,6 +37,13 @@ DELETE_WAIT_AFTER_SECONDS = 30
 # Status.Conditions contains a True ResourceSynced condition.
 CHECK_STATUS_WAIT_SECONDS = 60
 
+# It can take a LONG time for the domain's endpoint/endpoints field to be
+# returned, even after Processing=False and the ResourceSynced condition is set
+# to True on a domain. Domain resources are requeued on success which means the
+# controller will poll for latest status, including endpoint/endpoints, every
+# 30 seconds, so 2 minutes *should* be enough here.
+CHECK_ENDPOINT_WAIT_SECONDS = 60*2
+
 
 @dataclass
 class Domain:
@@ -93,7 +100,7 @@ def es_7_9_domain(os_client):
     time.sleep(CHECK_STATUS_WAIT_SECONDS)
     condition.assert_synced(ref)
 
-    yield resource
+    yield ref, resource
 
     # Delete the k8s resource on teardown of the module
     k8s.delete_custom_resource(ref)
@@ -135,7 +142,7 @@ def es_2d3m_multi_az_no_vpc_7_9_domain(os_client):
     time.sleep(CHECK_STATUS_WAIT_SECONDS)
     condition.assert_synced(ref)
 
-    yield resource
+    yield ref, resource
 
     # Delete the k8s resource on teardown of the module
     k8s.delete_custom_resource(ref)
@@ -187,7 +194,7 @@ def es_2d3m_multi_az_vpc_2_subnet7_9_domain(os_client, resources: BootstrapResou
     time.sleep(CHECK_STATUS_WAIT_SECONDS)
     condition.assert_synced(ref)
 
-    yield resource
+    yield ref, resource
 
     # Delete the k8s resource on teardown of the module
     k8s.delete_custom_resource(ref)
@@ -203,35 +210,56 @@ def es_2d3m_multi_az_vpc_2_subnet7_9_domain(os_client, resources: BootstrapResou
 @pytest.mark.canary
 class TestDomain:
     def test_create_delete_es_7_9(self, es_7_9_domain):
-        resource = es_7_9_domain
+        ref, resource = es_7_9_domain
 
-        aws_res = domain.get(resource.name)
+        latest = domain.get(resource.name)
 
-        assert aws_res['DomainStatus']['EngineVersion'] == 'Elasticsearch_7.9'
-        assert aws_res['DomainStatus']['Created'] == True
-        assert aws_res['DomainStatus']['ClusterConfig']['InstanceCount'] == resource.data_node_count
-        assert aws_res['DomainStatus']['ClusterConfig']['ZoneAwarenessEnabled'] == resource.is_zone_aware
+        assert latest['DomainStatus']['EngineVersion'] == 'Elasticsearch_7.9'
+        assert latest['DomainStatus']['Created'] == True
+        assert latest['DomainStatus']['ClusterConfig']['InstanceCount'] == resource.data_node_count
+        assert latest['DomainStatus']['ClusterConfig']['ZoneAwarenessEnabled'] == resource.is_zone_aware
+
+        time.sleep(CHECK_ENDPOINT_WAIT_SECONDS)
+
+        cr = k8s.get_resource(ref)
+        assert cr is not None
+        assert 'status' in cr
+        domain.assert_endpoint(cr)
 
     def test_create_delete_es_2d3m_multi_az_no_vpc_7_9(self, es_2d3m_multi_az_no_vpc_7_9_domain):
-        resource = es_2d3m_multi_az_no_vpc_7_9_domain
+        ref, resource = es_2d3m_multi_az_no_vpc_7_9_domain
 
-        aws_res = domain.get(resource.name)
+        latest = domain.get(resource.name)
 
-        assert aws_res['DomainStatus']['EngineVersion'] == 'Elasticsearch_7.9'
-        assert aws_res['DomainStatus']['Created'] == True
-        assert aws_res['DomainStatus']['ClusterConfig']['InstanceCount'] == resource.data_node_count
-        assert aws_res['DomainStatus']['ClusterConfig']['DedicatedMasterCount'] == resource.master_node_count
-        assert aws_res['DomainStatus']['ClusterConfig']['ZoneAwarenessEnabled'] == resource.is_zone_aware
+        assert latest['DomainStatus']['EngineVersion'] == 'Elasticsearch_7.9'
+        assert latest['DomainStatus']['Created'] == True
+        assert latest['DomainStatus']['ClusterConfig']['InstanceCount'] == resource.data_node_count
+        assert latest['DomainStatus']['ClusterConfig']['DedicatedMasterCount'] == resource.master_node_count
+        assert latest['DomainStatus']['ClusterConfig']['ZoneAwarenessEnabled'] == resource.is_zone_aware
+
+        time.sleep(CHECK_ENDPOINT_WAIT_SECONDS)
+
+        cr = k8s.get_resource(ref)
+        assert cr is not None
+        assert 'status' in cr
+        domain.assert_endpoint(cr)
 
     def test_create_delete_es_2d3m_multi_az_vpc_2_subnet7_9(self, es_2d3m_multi_az_vpc_2_subnet7_9_domain):
-        resource = es_2d3m_multi_az_vpc_2_subnet7_9_domain
+        ref, resource = es_2d3m_multi_az_vpc_2_subnet7_9_domain
 
-        aws_res = domain.get(resource.name)
+        latest = domain.get(resource.name)
 
-        assert aws_res['DomainStatus']['EngineVersion'] == 'Elasticsearch_7.9'
-        assert aws_res['DomainStatus']['Created'] == True
-        assert aws_res['DomainStatus']['ClusterConfig']['InstanceCount'] == resource.data_node_count
-        assert aws_res['DomainStatus']['ClusterConfig']['DedicatedMasterCount'] == resource.master_node_count
-        assert aws_res['DomainStatus']['ClusterConfig']['ZoneAwarenessEnabled'] == resource.is_zone_aware
-        assert aws_res['DomainStatus']['VPCOptions']['VPCId'] == resource.vpc_id
-        assert set(aws_res['DomainStatus']['VPCOptions']['SubnetIds']) == set(resource.vpc_subnets)
+        assert latest['DomainStatus']['EngineVersion'] == 'Elasticsearch_7.9'
+        assert latest['DomainStatus']['Created'] == True
+        assert latest['DomainStatus']['ClusterConfig']['InstanceCount'] == resource.data_node_count
+        assert latest['DomainStatus']['ClusterConfig']['DedicatedMasterCount'] == resource.master_node_count
+        assert latest['DomainStatus']['ClusterConfig']['ZoneAwarenessEnabled'] == resource.is_zone_aware
+        assert latest['DomainStatus']['VPCOptions']['VPCId'] == resource.vpc_id
+        assert set(latest['DomainStatus']['VPCOptions']['SubnetIds']) == set(resource.vpc_subnets)
+
+        time.sleep(CHECK_ENDPOINT_WAIT_SECONDS)
+
+        cr = k8s.get_resource(ref)
+        assert cr is not None
+        assert 'status' in cr
+        domain.assert_endpoints(cr)
