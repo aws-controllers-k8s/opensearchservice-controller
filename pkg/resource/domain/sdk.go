@@ -17,6 +17,7 @@ package domain
 
 import (
 	"context"
+	"reflect"
 	"strings"
 
 	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
@@ -42,6 +43,7 @@ var (
 	_ = ackv1alpha1.AWSAccountID("")
 	_ = &ackerr.NotFound
 	_ = &ackcondition.NotManagedMessage
+	_ = &reflect.Value{}
 )
 
 // sdkFind returns SDK-specific information about a supplied resource
@@ -834,7 +836,13 @@ func (rm *resourceManager) newCreateRequestPayload(
 				f2f2.SetMasterUserName(*r.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserName)
 			}
 			if r.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword != nil {
-				f2f2.SetMasterUserPassword(*r.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword)
+				tmpSecret, err := rm.rr.SecretValueFromReference(ctx, r.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword)
+				if err != nil {
+					return nil, err
+				}
+				if tmpSecret != "" {
+					f2f2.SetMasterUserPassword(tmpSecret)
+				}
 			}
 			f2.SetMasterUserOptions(f2f2)
 		}

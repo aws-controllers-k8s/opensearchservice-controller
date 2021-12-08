@@ -19,11 +19,13 @@ from acktest.bootstrapping import Resources
 from acktest.bootstrapping.vpc import VPC
 from acktest.bootstrapping.iam import ServiceLinkedRole
 from e2e import bootstrap_directory
+from e2e import secret
 
 @dataclass
 class BootstrapResources(Resources):
     VPC: VPC
     SLR: ServiceLinkedRole
+    MasterUserPasswordSecret: secret.Secret
 
 _bootstrap_resources = None
 

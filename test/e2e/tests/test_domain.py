@@ -62,11 +62,15 @@ def resources():
 
 
 @pytest.fixture
-def es_7_9_domain(os_client):
+def es_7_9_domain(os_client, resources: BootstrapResources):
     resource = Domain(name="my-os-domain", data_node_count=1)
+    mup = resources.MasterUserPasswordSecret
 
     replacements = REPLACEMENT_VALUES.copy()
     replacements["DOMAIN_NAME"] = resource.name
+    replacements["MASTER_USER_PASS_SECRET_NAMESPACE"] = mup.ns
+    replacements["MASTER_USER_PASS_SECRET_NAME"] = mup.name
+    replacements["MASTER_USER_PASS_SECRET_KEY"] = mup.key
 
     resource_data = load_opensearch_resource(
         "domain_es7.9",
@@ -113,11 +117,15 @@ def es_7_9_domain(os_client):
 
 
 @pytest.fixture
-def es_2d3m_multi_az_no_vpc_7_9_domain(os_client):
+def es_2d3m_multi_az_no_vpc_7_9_domain(os_client, resources: BootstrapResources):
     resource = Domain(name="my-os-domain2",data_node_count=2,master_node_count=3,is_zone_aware=True)
+    mup = resources.MasterUserPasswordSecret
 
     replacements = REPLACEMENT_VALUES.copy()
     replacements["DOMAIN_NAME"] = resource.name
+    replacements["MASTER_USER_PASS_SECRET_NAMESPACE"] = mup.ns
+    replacements["MASTER_USER_PASS_SECRET_NAME"] = mup.name
+    replacements["MASTER_USER_PASS_SECRET_KEY"] = mup.key
     replacements["MASTER_NODE_COUNT"] = str(resource.master_node_count)
     replacements["DATA_NODE_COUNT"] = str(resource.data_node_count)
 
@@ -165,9 +173,13 @@ def es_2d3m_multi_az_vpc_2_subnet7_9_domain(os_client, resources: BootstrapResou
         vpc_id=resources.VPC.vpc_id,
         vpc_subnets=resources.VPC.private_subnets.subnet_ids,
     )
+    mup = resources.MasterUserPasswordSecret
 
     replacements = REPLACEMENT_VALUES.copy()
     replacements["DOMAIN_NAME"] = resource.name
+    replacements["MASTER_USER_PASS_SECRET_NAMESPACE"] = mup.ns
+    replacements["MASTER_USER_PASS_SECRET_NAME"] = mup.name
+    replacements["MASTER_USER_PASS_SECRET_KEY"] = mup.key
     replacements["MASTER_NODE_COUNT"] = str(resource.master_node_count)
     replacements["DATA_NODE_COUNT"] = str(resource.data_node_count)
     replacements["SUBNETS"] = str(resource.vpc_subnets)

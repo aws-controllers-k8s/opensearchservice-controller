@@ -23,6 +23,8 @@ from e2e.bootstrap_resources import (
     VPC,
     ServiceLinkedRole
 )
+from e2e import secret
+
 
 def service_bootstrap() -> Resources:
     logging.getLogger().setLevel(logging.INFO)
@@ -33,7 +35,13 @@ def service_bootstrap() -> Resources:
             aws_service_name="opensearchservice.amazonaws.com",
             default_name="AWSServiceRoleForAmazonOpenSearchService",
             description="An SLR to allow Amazon OpenSearch Service to work within a private VPC"
-        )
+        ),
+        MasterUserPasswordSecret=secret.Secret(
+            ns="default",
+            name="passwords",
+            key="master_user_pass",
+            val="Secretpass123456!",
+        ),
     )
 
     try:

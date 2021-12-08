@@ -377,9 +377,9 @@ type MasterUserOptions struct {
 	// The Amazon Resource Name (ARN) of the domain. See Identifiers for IAM Entities
 	// (http://docs.aws.amazon.com/IAM/latest/UserGuide/index.html) in Using AWS
 	// Identity and Access Management for more information.
-	MasterUserARN      *string `json:"masterUserARN,omitempty"`
-	MasterUserName     *string `json:"masterUserName,omitempty"`
-	MasterUserPassword *string `json:"masterUserPassword,omitempty"`
+	MasterUserARN      *string                         `json:"masterUserARN,omitempty"`
+	MasterUserName     *string                         `json:"masterUserName,omitempty"`
+	MasterUserPassword *ackv1alpha1.SecretKeyReference `json:"masterUserPassword,omitempty"`
 }
 
 // The node-to-node encryption options.
