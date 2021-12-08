@@ -18,3 +18,21 @@ spec:
     ebsEnabled: true
     volumeSize: 10
     volumeType: gp2
+  # encryptionAtRestOptions.enabled, domainEndpointOptions.enforceHTTPS
+  # nodeToNodeEncryptionOptions.enabled need to be set in order to use
+  # advancedSecurityOptions...
+  domainEndpointOptions:
+    enforceHTTPS: true
+  encryptionAtRestOptions:
+    enabled: true
+  nodeToNodeEncryptionOptions:
+    enabled: true
+  advancedSecurityOptions:
+    enabled: true
+    internalUserDatabaseEnabled: true
+    masterUserOptions:
+      masterUserName: admin
+      masterUserPassword:
+        namespace: $MASTER_USER_PASS_SECRET_NAMESPACE
+        name: $MASTER_USER_PASS_SECRET_NAME
+        key: $MASTER_USER_PASS_SECRET_KEY

@@ -1277,7 +1277,7 @@ func (in *MasterUserOptions) DeepCopyInto(out *MasterUserOptions) {
 	}
 	if in.MasterUserPassword != nil {
 		in, out := &in.MasterUserPassword, &out.MasterUserPassword
-		*out = new(string)
+		*out = new(corev1alpha1.SecretKeyReference)
 		**out = **in
 	}
 }
