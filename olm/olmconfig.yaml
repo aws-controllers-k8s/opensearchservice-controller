@@ -1,0 +1,36 @@
+---
+annotations:
+  capabilityLevel: Basic Install
+  shortDescription: AWS OpenSearch Service controller is a service controller for managing OpenSearch Service resources
+    in Kubernetes
+displayName: AWS Controllers for Kubernetes - Amazon OpenSearch Service
+description: |-
+  Manage OpenSearch Service resources in AWS from within your Kubernetes cluster.
+
+
+  **About Amazon OpenSearch Service**
+
+
+  Amazon OpenSearch Service (successor to Amazon Elasticsearch Service) is a managed service that makes it easy to deploy, operate, and scale OpenSearch clusters in the AWS Cloud. Amazon OpenSearch Service supports OpenSearch and legacy Elasticsearch OSS. When you create a cluster, you have the option of which search engine to use. OpenSearch Service offers broad compatibility with Elasticsearch OSS 7.10, the final open source version of the software. For information about what changed with the recent service renaming, and the actions you might need to take, see [Amazon OpenSearch Service - Summary of changes](https://docs.aws.amazon.com/opensearch-service/latest/developerguide/rename.html).
+
+
+  **About the AWS Controllers for Kubernetes**
+
+
+  This controller is a component of the [AWS Controller for Kubernetes](https://github.com/aws/aws-controllers-k8s)
+  project. This project is currently in **developer preview**.
+
+
+  **Pre-Installation Steps**
+
+
+  Please follow the following link: [Red Hat OpenShift](https://aws-controllers-k8s.github.io/community/docs/user-docs/openshift/)
+samples:
+- kind: Domain
+  spec: '{}'
+maintainers:
+- name: "opensearch service maintainer team"
+  email: "ack-maintainers@amazon.com"
+links:
+- name: Amazon OpenSearch Service Developer Resources
+  url: https://aws.amazon.com/opensearch-service/resources/
