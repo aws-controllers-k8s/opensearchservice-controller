@@ -718,11 +718,6 @@ func (in *DomainSpec) DeepCopyInto(out *DomainSpec) {
 		*out = new(DomainEndpointOptions)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.DomainName != nil {
-		in, out := &in.DomainName, &out.DomainName
-		*out = new(string)
-		**out = **in
-	}
 	if in.EBSOptions != nil {
 		in, out := &in.EBSOptions, &out.EBSOptions
 		*out = new(EBSOptions)
@@ -753,13 +748,18 @@ func (in *DomainSpec) DeepCopyInto(out *DomainSpec) {
 			(*out)[key] = outVal
 		}
 	}
+	if in.Name != nil {
+		in, out := &in.Name, &out.Name
+		*out = new(string)
+		**out = **in
+	}
 	if in.NodeToNodeEncryptionOptions != nil {
 		in, out := &in.NodeToNodeEncryptionOptions, &out.NodeToNodeEncryptionOptions
 		*out = new(NodeToNodeEncryptionOptions)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.TagList != nil {
-		in, out := &in.TagList, &out.TagList
+	if in.Tags != nil {
+		in, out := &in.Tags, &out.Tags
 		*out = make([]*Tag, len(*in))
 		for i := range *in {
 			if (*in)[i] != nil {

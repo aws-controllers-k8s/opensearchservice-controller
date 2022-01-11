@@ -225,13 +225,6 @@ spec:
                   tlsSecurityPolicy:
                     type: string
                 type: object
-              domainName:
-                description: 'The name of the Amazon OpenSearch Service domain you''re
-                  creating. Domain names are unique across the domains owned by an
-                  account within an AWS region. Domain names must start with a lowercase
-                  letter and can contain the following characters: a-z (lowercase),
-                  0-9, and - (hyphen).'
-                type: string
               ebsOptions:
                 description: Options to enable, disable, and specify the type and
                   size of EBS storage volumes.
@@ -283,13 +276,20 @@ spec:
                 description: Map of LogType and LogPublishingOption, each containing
                   options to publish a given type of OpenSearch log.
                 type: object
+              name:
+                description: 'The name of the Amazon OpenSearch Service domain you''re
+                  creating. Domain names are unique across the domains owned by an
+                  account within an AWS region. Domain names must start with a lowercase
+                  letter and can contain the following characters: a-z (lowercase),
+                  0-9, and - (hyphen).'
+                type: string
               nodeToNodeEncryptionOptions:
                 description: Node-to-node encryption options.
                 properties:
                   enabled:
                     type: boolean
                 type: object
-              tagList:
+              tags:
                 description: A list of Tag added during domain creation.
                 items:
                   description: A key value pair for a resource tag.
@@ -321,7 +321,7 @@ spec:
                     type: array
                 type: object
             required:
-            - domainName
+            - name
             type: object
           status:
             description: DomainStatus defines the observed state of Domain

@@ -9,6 +9,18 @@ ignore:
     - CreateDomainInput.SnapshotOptions
 resources:
   Domain:
+    renames:
+      operations:
+        CreateDomain:
+          input_fields:
+            DomainName: Name
+            TagList: Tags
+        DeleteDomain:
+          input_fields:
+            DomainName: Name
+        DescribeDomain:
+          input_fields:
+            DomainName: Name
     reconcile:
       # Doing this because it takes a LONG time for the Domain's
       # endpoint/endpoints field to be populated, even after the Domain's
