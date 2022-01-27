@@ -19,6 +19,7 @@ import logging
 import time
 from typing import Dict
 
+from acktest.resources import random_suffix_name
 from acktest.k8s import resource as k8s
 import pytest
 
@@ -30,7 +31,7 @@ from e2e.bootstrap_resources import BootstrapResources, get_bootstrap_resources
 
 RESOURCE_PLURAL = 'domains'
 
-DELETE_WAIT_AFTER_SECONDS = 30
+DELETE_WAIT_AFTER_SECONDS = 60*2
 
 # This is the time to wait *after* the domain returns Processing=False from the
 # Opensearch DescribeDomain API call and before we check to see that the CR's
@@ -63,7 +64,7 @@ def resources():
 
 @pytest.fixture
 def es_7_9_domain(os_client, resources: BootstrapResources):
-    resource = Domain(name="my-os-domain", data_node_count=1)
+    resource = Domain(name=random_suffix_name("my-os-domain1", 20), data_node_count=1)
     mup = resources.MasterUserPasswordSecret
 
     replacements = REPLACEMENT_VALUES.copy()
@@ -118,7 +119,7 @@ def es_7_9_domain(os_client, resources: BootstrapResources):
 
 @pytest.fixture
 def es_2d3m_multi_az_no_vpc_7_9_domain(os_client, resources: BootstrapResources):
-    resource = Domain(name="my-os-domain2",data_node_count=2,master_node_count=3,is_zone_aware=True)
+    resource = Domain(name=random_suffix_name("my-os-domain2", 20), data_node_count=2,master_node_count=3,is_zone_aware=True)
     mup = resources.MasterUserPasswordSecret
 
     replacements = REPLACEMENT_VALUES.copy()
@@ -165,7 +166,7 @@ def es_2d3m_multi_az_no_vpc_7_9_domain(os_client, resources: BootstrapResources)
 @pytest.fixture
 def es_2d3m_multi_az_vpc_2_subnet7_9_domain(os_client, resources: BootstrapResources):
     resource = Domain(
-        name="my-os-domain3",
+        name=random_suffix_name("my-os-domain3", 20),
         data_node_count=2,
         master_node_count=3,
         is_zone_aware=True,
