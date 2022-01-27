@@ -31,7 +31,7 @@ from e2e.bootstrap_resources import BootstrapResources, get_bootstrap_resources
 
 RESOURCE_PLURAL = 'domains'
 
-DELETE_WAIT_AFTER_SECONDS = 60
+DELETE_WAIT_AFTER_SECONDS = 60*2
 
 # This is the time to wait *after* the domain returns Processing=False from the
 # Opensearch DescribeDomain API call and before we check to see that the CR's
