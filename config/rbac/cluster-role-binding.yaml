@@ -8,5 +8,5 @@ roleRef:
   name: ack-opensearchservice-controller
 subjects:
 - kind: ServiceAccount
-  name: default
+  name: ack-opensearchservice-controller
   namespace: ack-system
