@@ -42,12 +42,6 @@ type DomainSpec struct {
 	CognitoOptions *CognitoOptions `json:"cognitoOptions,omitempty"`
 	// Options to specify configurations that will be applied to the domain endpoint.
 	DomainEndpointOptions *DomainEndpointOptions `json:"domainEndpointOptions,omitempty"`
-	// The name of the Amazon OpenSearch Service domain you're creating. Domain
-	// names are unique across the domains owned by an account within an AWS region.
-	// Domain names must start with a lowercase letter and can contain the following
-	// characters: a-z (lowercase), 0-9, and - (hyphen).
-	// +kubebuilder:validation:Required
-	DomainName *string `json:"domainName"`
 	// Options to enable, disable, and specify the type and size of EBS storage
 	// volumes.
 	EBSOptions *EBSOptions `json:"ebsOptions,omitempty"`
@@ -61,10 +55,16 @@ type DomainSpec struct {
 	// Map of LogType and LogPublishingOption, each containing options to publish
 	// a given type of OpenSearch log.
 	LogPublishingOptions map[string]*LogPublishingOption `json:"logPublishingOptions,omitempty"`
+	// The name of the Amazon OpenSearch Service domain you're creating. Domain
+	// names are unique across the domains owned by an account within an AWS region.
+	// Domain names must start with a lowercase letter and can contain the following
+	// characters: a-z (lowercase), 0-9, and - (hyphen).
+	// +kubebuilder:validation:Required
+	Name *string `json:"name"`
 	// Node-to-node encryption options.
 	NodeToNodeEncryptionOptions *NodeToNodeEncryptionOptions `json:"nodeToNodeEncryptionOptions,omitempty"`
 	// A list of Tag added during domain creation.
-	TagList []*Tag `json:"tagList,omitempty"`
+	Tags []*Tag `json:"tags,omitempty"`
 	// Options to specify the subnets and security groups for a VPC endpoint. For
 	// more information, see Launching your Amazon OpenSearch Service domains using
 	// a VPC (http://docs.aws.amazon.com/opensearch-service/latest/developerguide/vpc.html).

@@ -249,9 +249,9 @@ func (rm *resourceManager) sdkFind(
 		ko.Status.DomainID = nil
 	}
 	if resp.DomainStatus.DomainName != nil {
-		ko.Spec.DomainName = resp.DomainStatus.DomainName
+		ko.Spec.Name = resp.DomainStatus.DomainName
 	} else {
-		ko.Spec.DomainName = nil
+		ko.Spec.Name = nil
 	}
 	if resp.DomainStatus.EBSOptions != nil {
 		f12 := &svcapitypes.EBSOptions{}
@@ -421,7 +421,7 @@ func (rm *resourceManager) sdkFind(
 func (rm *resourceManager) requiredFieldsMissingFromReadOneInput(
 	r *resource,
 ) bool {
-	return r.ko.Spec.DomainName == nil
+	return r.ko.Spec.Name == nil
 
 }
 
@@ -432,8 +432,8 @@ func (rm *resourceManager) newDescribeRequestPayload(
 ) (*svcsdk.DescribeDomainInput, error) {
 	res := &svcsdk.DescribeDomainInput{}
 
-	if r.ko.Spec.DomainName != nil {
-		res.SetDomainName(*r.ko.Spec.DomainName)
+	if r.ko.Spec.Name != nil {
+		res.SetDomainName(*r.ko.Spec.Name)
 	}
 
 	return res, nil
@@ -634,9 +634,9 @@ func (rm *resourceManager) sdkCreate(
 		ko.Status.DomainID = nil
 	}
 	if resp.DomainStatus.DomainName != nil {
-		ko.Spec.DomainName = resp.DomainStatus.DomainName
+		ko.Spec.Name = resp.DomainStatus.DomainName
 	} else {
-		ko.Spec.DomainName = nil
+		ko.Spec.Name = nil
 	}
 	if resp.DomainStatus.EBSOptions != nil {
 		f12 := &svcapitypes.EBSOptions{}
@@ -991,8 +991,8 @@ func (rm *resourceManager) newCreateRequestPayload(
 		}
 		res.SetDomainEndpointOptions(f6)
 	}
-	if r.ko.Spec.DomainName != nil {
-		res.SetDomainName(*r.ko.Spec.DomainName)
+	if r.ko.Spec.Name != nil {
+		res.SetDomainName(*r.ko.Spec.Name)
 	}
 	if r.ko.Spec.EBSOptions != nil {
 		f8 := &svcsdk.EBSOptions{}
@@ -1044,9 +1044,9 @@ func (rm *resourceManager) newCreateRequestPayload(
 		}
 		res.SetNodeToNodeEncryptionOptions(f12)
 	}
-	if r.ko.Spec.TagList != nil {
+	if r.ko.Spec.Tags != nil {
 		f13 := []*svcsdk.Tag{}
-		for _, f13iter := range r.ko.Spec.TagList {
+		for _, f13iter := range r.ko.Spec.Tags {
 			f13elem := &svcsdk.Tag{}
 			if f13iter.Key != nil {
 				f13elem.SetKey(*f13iter.Key)
@@ -1126,8 +1126,8 @@ func (rm *resourceManager) newDeleteRequestPayload(
 ) (*svcsdk.DeleteDomainInput, error) {
 	res := &svcsdk.DeleteDomainInput{}
 
-	if r.ko.Spec.DomainName != nil {
-		res.SetDomainName(*r.ko.Spec.DomainName)
+	if r.ko.Spec.Name != nil {
+		res.SetDomainName(*r.ko.Spec.Name)
 	}
 
 	return res, nil

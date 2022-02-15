@@ -336,13 +336,6 @@ func newResourceDelta(
 			}
 		}
 	}
-	if ackcompare.HasNilDifference(a.ko.Spec.DomainName, b.ko.Spec.DomainName) {
-		delta.Add("Spec.DomainName", a.ko.Spec.DomainName, b.ko.Spec.DomainName)
-	} else if a.ko.Spec.DomainName != nil && b.ko.Spec.DomainName != nil {
-		if *a.ko.Spec.DomainName != *b.ko.Spec.DomainName {
-			delta.Add("Spec.DomainName", a.ko.Spec.DomainName, b.ko.Spec.DomainName)
-		}
-	}
 	if ackcompare.HasNilDifference(a.ko.Spec.EBSOptions, b.ko.Spec.EBSOptions) {
 		delta.Add("Spec.EBSOptions", a.ko.Spec.EBSOptions, b.ko.Spec.EBSOptions)
 	} else if a.ko.Spec.EBSOptions != nil && b.ko.Spec.EBSOptions != nil {
@@ -407,6 +400,13 @@ func newResourceDelta(
 			delta.Add("Spec.LogPublishingOptions", a.ko.Spec.LogPublishingOptions, b.ko.Spec.LogPublishingOptions)
 		}
 	}
+	if ackcompare.HasNilDifference(a.ko.Spec.Name, b.ko.Spec.Name) {
+		delta.Add("Spec.Name", a.ko.Spec.Name, b.ko.Spec.Name)
+	} else if a.ko.Spec.Name != nil && b.ko.Spec.Name != nil {
+		if *a.ko.Spec.Name != *b.ko.Spec.Name {
+			delta.Add("Spec.Name", a.ko.Spec.Name, b.ko.Spec.Name)
+		}
+	}
 	if ackcompare.HasNilDifference(a.ko.Spec.NodeToNodeEncryptionOptions, b.ko.Spec.NodeToNodeEncryptionOptions) {
 		delta.Add("Spec.NodeToNodeEncryptionOptions", a.ko.Spec.NodeToNodeEncryptionOptions, b.ko.Spec.NodeToNodeEncryptionOptions)
 	} else if a.ko.Spec.NodeToNodeEncryptionOptions != nil && b.ko.Spec.NodeToNodeEncryptionOptions != nil {
@@ -418,8 +418,8 @@ func newResourceDelta(
 			}
 		}
 	}
-	if !reflect.DeepEqual(a.ko.Spec.TagList, b.ko.Spec.TagList) {
-		delta.Add("Spec.TagList", a.ko.Spec.TagList, b.ko.Spec.TagList)
+	if !reflect.DeepEqual(a.ko.Spec.Tags, b.ko.Spec.Tags) {
+		delta.Add("Spec.Tags", a.ko.Spec.Tags, b.ko.Spec.Tags)
 	}
 	if ackcompare.HasNilDifference(a.ko.Spec.VPCOptions, b.ko.Spec.VPCOptions) {
 		delta.Add("Spec.VPCOptions", a.ko.Spec.VPCOptions, b.ko.Spec.VPCOptions)

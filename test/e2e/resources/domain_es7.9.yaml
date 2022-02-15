@@ -3,7 +3,7 @@ kind: Domain
 metadata:
   name: $DOMAIN_NAME
 spec:
-  domainName: $DOMAIN_NAME
+  name: $DOMAIN_NAME
   engineVersion: "Elasticsearch_7.9"
   # EBSOptions is required for default OpenSearch domain instance type
   # m4.large.search
