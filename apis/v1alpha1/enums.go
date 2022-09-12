@@ -230,6 +230,15 @@ const (
 	OutboundConnectionStatusCode_DELETED            OutboundConnectionStatusCode = "DELETED"
 )
 
+type OverallChangeStatus string
+
+const (
+	OverallChangeStatus_PENDING    OverallChangeStatus = "PENDING"
+	OverallChangeStatus_PROCESSING OverallChangeStatus = "PROCESSING"
+	OverallChangeStatus_COMPLETED  OverallChangeStatus = "COMPLETED"
+	OverallChangeStatus_FAILED     OverallChangeStatus = "FAILED"
+)
+
 type PackageStatus string
 
 const (
@@ -315,4 +324,5 @@ const (
 	VolumeType_standard VolumeType = "standard"
 	VolumeType_gp2      VolumeType = "gp2"
 	VolumeType_io1      VolumeType = "io1"
+	VolumeType_gp3      VolumeType = "gp3"
 )

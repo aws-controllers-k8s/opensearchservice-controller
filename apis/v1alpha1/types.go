@@ -73,8 +73,10 @@ type AdvancedOptionsStatus struct {
 // The advanced security configuration: whether advanced security is enabled,
 // whether the internal database option is enabled.
 type AdvancedSecurityOptions struct {
-	Enabled                     *bool `json:"enabled,omitempty"`
-	InternalUserDatabaseEnabled *bool `json:"internalUserDatabaseEnabled,omitempty"`
+	AnonymousAuthDisableDate    *metav1.Time `json:"anonymousAuthDisableDate,omitempty"`
+	AnonymousAuthEnabled        *bool        `json:"anonymousAuthEnabled,omitempty"`
+	Enabled                     *bool        `json:"enabled,omitempty"`
+	InternalUserDatabaseEnabled *bool        `json:"internalUserDatabaseEnabled,omitempty"`
 	// Describes the SAML application configured for the domain.
 	SAMLOptions *SAMLOptionsOutput `json:"sAMLOptions,omitempty"`
 }
@@ -83,6 +85,7 @@ type AdvancedSecurityOptions struct {
 // whether the internal database option is enabled, master username and password
 // (if internal database is enabled), and master user ARN (if IAM is enabled).
 type AdvancedSecurityOptionsInput struct {
+	AnonymousAuthEnabled        *bool `json:"anonymousAuthEnabled,omitempty"`
 	Enabled                     *bool `json:"enabled,omitempty"`
 	InternalUserDatabaseEnabled *bool `json:"internalUserDatabaseEnabled,omitempty"`
 	// Credentials for the master user: username and password, ARN, or both.
@@ -144,6 +147,19 @@ type AutoTuneStatus struct {
 	State *string `json:"state,omitempty"`
 }
 
+// Specifies change details of the domain configuration change.
+type ChangeProgressDetails struct {
+	ChangeID *string `json:"changeID,omitempty"`
+	Message  *string `json:"message,omitempty"`
+}
+
+// The progress details of a specific domain configuration change.
+type ChangeProgressStatusDetails struct {
+	ChangeID            *string   `json:"changeID,omitempty"`
+	CompletedProperties []*string `json:"completedProperties,omitempty"`
+	PendingProperties   []*string `json:"pendingProperties,omitempty"`
+}
+
 // The configuration for the domain cluster, such as the type and number of
 // instances.
 type ClusterConfig struct {
@@ -197,6 +213,12 @@ type ColdStorageOptions struct {
 // the domain can be upgraded.
 type CompatibleVersionsMap struct {
 	SourceVersion *string `json:"sourceVersion,omitempty"`
+}
+
+// The configuration of a domain.
+type DomainConfig struct {
+	// Specifies change details of the domain configuration change.
+	ChangeProgressDetails *ChangeProgressDetails `json:"changeProgressDetails,omitempty"`
 }
 
 // Options to configure the endpoint for the domain.
@@ -260,6 +282,8 @@ type DomainStatus_SDK struct {
 	// The Auto-Tune options: the Auto-Tune desired state for the domain and list
 	// of maintenance schedules.
 	AutoTuneOptions *AutoTuneOptionsOutput `json:"autoTuneOptions,omitempty"`
+	// Specifies change details of the domain configuration change.
+	ChangeProgressDetails *ChangeProgressDetails `json:"changeProgressDetails,omitempty"`
 	// The configuration for the domain cluster, such as the type and number of
 	// instances.
 	ClusterConfig *ClusterConfig `json:"clusterConfig,omitempty"`
@@ -302,6 +326,10 @@ type DomainStatus_SDK struct {
 	VPCOptions *VPCDerivedInfo `json:"vpcOptions,omitempty"`
 }
 
+type DryRunResults struct {
+	Message *string `json:"message,omitempty"`
+}
+
 // The maintenance schedule duration: duration value and duration unit. See
 // Auto-Tune for Amazon OpenSearch Service (https://docs.aws.amazon.com/opensearch-service/latest/developerguide/auto-tune.html)
 // for more information.
@@ -320,8 +348,9 @@ type Duration struct {
 type EBSOptions struct {
 	EBSEnabled *bool  `json:"ebsEnabled,omitempty"`
 	IOPS       *int64 `json:"iops,omitempty"`
+	Throughput *int64 `json:"throughput,omitempty"`
 	VolumeSize *int64 `json:"volumeSize,omitempty"`
-	// The type of EBS volume, standard, gp2, or io1. See Configuring EBS-based
+	// The type of EBS volume, standard, gp2, gp3 or io1. See Configuring EBS-based
 	// Storage (http://docs.aws.amazon.com/opensearch-service/latest/developerguide/opensearch-createupdatedomains.html#opensearch-createdomain-configure-ebs)
 	// for more information.
 	VolumeType *string `json:"volumeType,omitempty"`
@@ -408,14 +437,16 @@ type RecurringCharge struct {
 type ReservedInstance struct {
 	CurrencyCode               *string `json:"currencyCode,omitempty"`
 	InstanceType               *string `json:"instanceType,omitempty"`
+	ReservedInstanceID         *string `json:"reservedInstanceID,omitempty"`
 	ReservedInstanceOfferingID *string `json:"reservedInstanceOfferingID,omitempty"`
 	State                      *string `json:"state,omitempty"`
 }
 
 // Details of a reserved OpenSearch instance offering.
 type ReservedInstanceOffering struct {
-	CurrencyCode *string `json:"currencyCode,omitempty"`
-	InstanceType *string `json:"instanceType,omitempty"`
+	CurrencyCode               *string `json:"currencyCode,omitempty"`
+	InstanceType               *string `json:"instanceType,omitempty"`
+	ReservedInstanceOfferingID *string `json:"reservedInstanceOfferingID,omitempty"`
 }
 
 // The SAML identity povider's information.

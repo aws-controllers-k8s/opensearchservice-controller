@@ -84,6 +84,9 @@ type DomainStatus struct {
 	// resource
 	// +kubebuilder:validation:Optional
 	Conditions []*ackv1alpha1.Condition `json:"conditions"`
+	// Specifies change details of the domain configuration change.
+	// +kubebuilder:validation:Optional
+	ChangeProgressDetails *ChangeProgressDetails `json:"changeProgressDetails,omitempty"`
 	// The domain creation status. True if the creation of a domain is complete.
 	// False if domain creation is still in progress.
 	// +kubebuilder:validation:Optional
