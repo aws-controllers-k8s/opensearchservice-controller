@@ -58,6 +58,13 @@ func newResourceDelta(
 	if ackcompare.HasNilDifference(a.ko.Spec.AdvancedSecurityOptions, b.ko.Spec.AdvancedSecurityOptions) {
 		delta.Add("Spec.AdvancedSecurityOptions", a.ko.Spec.AdvancedSecurityOptions, b.ko.Spec.AdvancedSecurityOptions)
 	} else if a.ko.Spec.AdvancedSecurityOptions != nil && b.ko.Spec.AdvancedSecurityOptions != nil {
+		if ackcompare.HasNilDifference(a.ko.Spec.AdvancedSecurityOptions.AnonymousAuthEnabled, b.ko.Spec.AdvancedSecurityOptions.AnonymousAuthEnabled) {
+			delta.Add("Spec.AdvancedSecurityOptions.AnonymousAuthEnabled", a.ko.Spec.AdvancedSecurityOptions.AnonymousAuthEnabled, b.ko.Spec.AdvancedSecurityOptions.AnonymousAuthEnabled)
+		} else if a.ko.Spec.AdvancedSecurityOptions.AnonymousAuthEnabled != nil && b.ko.Spec.AdvancedSecurityOptions.AnonymousAuthEnabled != nil {
+			if *a.ko.Spec.AdvancedSecurityOptions.AnonymousAuthEnabled != *b.ko.Spec.AdvancedSecurityOptions.AnonymousAuthEnabled {
+				delta.Add("Spec.AdvancedSecurityOptions.AnonymousAuthEnabled", a.ko.Spec.AdvancedSecurityOptions.AnonymousAuthEnabled, b.ko.Spec.AdvancedSecurityOptions.AnonymousAuthEnabled)
+			}
+		}
 		if ackcompare.HasNilDifference(a.ko.Spec.AdvancedSecurityOptions.Enabled, b.ko.Spec.AdvancedSecurityOptions.Enabled) {
 			delta.Add("Spec.AdvancedSecurityOptions.Enabled", a.ko.Spec.AdvancedSecurityOptions.Enabled, b.ko.Spec.AdvancedSecurityOptions.Enabled)
 		} else if a.ko.Spec.AdvancedSecurityOptions.Enabled != nil && b.ko.Spec.AdvancedSecurityOptions.Enabled != nil {
@@ -351,6 +358,13 @@ func newResourceDelta(
 		} else if a.ko.Spec.EBSOptions.IOPS != nil && b.ko.Spec.EBSOptions.IOPS != nil {
 			if *a.ko.Spec.EBSOptions.IOPS != *b.ko.Spec.EBSOptions.IOPS {
 				delta.Add("Spec.EBSOptions.IOPS", a.ko.Spec.EBSOptions.IOPS, b.ko.Spec.EBSOptions.IOPS)
+			}
+		}
+		if ackcompare.HasNilDifference(a.ko.Spec.EBSOptions.Throughput, b.ko.Spec.EBSOptions.Throughput) {
+			delta.Add("Spec.EBSOptions.Throughput", a.ko.Spec.EBSOptions.Throughput, b.ko.Spec.EBSOptions.Throughput)
+		} else if a.ko.Spec.EBSOptions.Throughput != nil && b.ko.Spec.EBSOptions.Throughput != nil {
+			if *a.ko.Spec.EBSOptions.Throughput != *b.ko.Spec.EBSOptions.Throughput {
+				delta.Add("Spec.EBSOptions.Throughput", a.ko.Spec.EBSOptions.Throughput, b.ko.Spec.EBSOptions.Throughput)
 			}
 		}
 		if ackcompare.HasNilDifference(a.ko.Spec.EBSOptions.VolumeSize, b.ko.Spec.EBSOptions.VolumeSize) {
