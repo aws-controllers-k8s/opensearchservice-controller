@@ -47,12 +47,12 @@ type AccessPoliciesStatus struct {
 // Status of the advanced options for the specified domain. Currently, the following
 // advanced options are available:
 //
-//    * Option to allow references to indices in an HTTP request body. Must
-//    be false when configuring access to individual sub-resources. By default,
-//    the value is true. See Advanced cluster parameters for more information.
+//   - Option to allow references to indices in an HTTP request body. Must
+//     be false when configuring access to individual sub-resources. By default,
+//     the value is true. See Advanced cluster parameters for more information.
 //
-//    * Option to specify the percentage of heap space allocated to field data.
-//    By default, this setting is unbounded.
+//   - Option to specify the percentage of heap space allocated to field data.
+//     By default, this setting is unbounded.
 //
 // For more information, see Advanced cluster parameters (http://docs.aws.amazon.com/opensearch-service/latest/developerguide/createupdatedomains.html#createdomain-configure-advanced-options).
 type AdvancedOptionsStatus struct {
@@ -385,11 +385,12 @@ type InstanceTypeDetails struct {
 
 // Log Publishing option that is set for a given domain. Attributes and their
 // details:
-//    * CloudWatchLogsLogGroupArn: ARN of the Cloudwatch log group to publish
-//    logs to.
 //
-//    * Enabled: Whether the log publishing for a given log type is enabled
-//    or not.
+//   - CloudWatchLogsLogGroupArn: ARN of the Cloudwatch log group to publish
+//     logs to.
+//
+//   - Enabled: Whether the log publishing for a given log type is enabled
+//     or not.
 type LogPublishingOption struct {
 	// ARN of the Cloudwatch log group to publish logs to.
 	CloudWatchLogsLogGroupARN *string `json:"cloudWatchLogsLogGroupARN,omitempty"`
