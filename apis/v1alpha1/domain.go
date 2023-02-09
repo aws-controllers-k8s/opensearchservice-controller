@@ -22,6 +22,7 @@ import (
 
 // DomainSpec defines the desired state of Domain.
 type DomainSpec struct {
+
 	// IAM access policy as a JSON-formatted string.
 	AccessPolicies *string `json:"accessPolicies,omitempty"`
 	// Option to allow references to indices in an HTTP request body. Must be false
