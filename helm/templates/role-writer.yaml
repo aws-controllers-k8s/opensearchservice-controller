@@ -10,7 +10,6 @@ rules:
   - opensearchservice.services.k8s.aws
   resources:
   - domains
-
   verbs:
   - create
   - delete
