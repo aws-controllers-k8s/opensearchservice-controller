@@ -14,7 +14,10 @@
 package domain
 
 import (
+	"context"
 	"errors"
+	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
+	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
 
 	ackrequeue "github.com/aws-controllers-k8s/runtime/pkg/requeue"
 )
@@ -33,4 +36,20 @@ func domainProcessing(r *resource) bool {
 		return false
 	}
 	return *r.ko.Status.Processing
+}
+
+func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, latest *resource,
+	delta *ackcompare.Delta) (updated *resource, err error) {
+	rlog := ackrtlog.FromContext(ctx)
+	exit := rlog.Trace("rm.customUpdateDomain")
+	defer exit(err)
+
+	// Default `updated` to `desired` because it is likely
+	// EC2 `modify` APIs do NOT return output, only errors.
+	// If the `modify` calls (i.e. `sync`) do NOT return
+	// an error, then the update was successful and desired.Spec
+	// (now updated.Spec) reflects the latest resource state.
+	updated = rm.concreteResource(desired.DeepCopy())
+
+	return updated, nil
 }

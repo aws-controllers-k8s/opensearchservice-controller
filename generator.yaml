@@ -45,3 +45,5 @@ resources:
     fields:
       AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword:
         is_secret: true
+    update_operation:
+      custom_method_name: customUpdateDomain
