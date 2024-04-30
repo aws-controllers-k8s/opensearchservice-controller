@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	svcsdk "github.com/aws/aws-sdk-go/service/opensearchservice"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -61,9 +62,17 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 	}
 
 	if desired.ko.Spec.EngineVersion != nil && delta.DifferentAt("Spec.EngineVersion") {
+		rlog.Debug("EngineVersion difference; will call UpgradeDomain")
 		// do a domain upgrade instead of a change to domain config
+		// this is the only advanced option supported in the UpgradeDomain api.
+		const allowedAdvancedOption = "override_main_response_version"
+		var advancedOptions map[string]*string
+		if desired.ko.Spec.AdvancedOptions != nil && desired.ko.Spec.AdvancedOptions[allowedAdvancedOption] != nil {
+			advancedOptions = make(map[string]*string)
+			advancedOptions[allowedAdvancedOption] = desired.ko.Spec.AdvancedOptions[allowedAdvancedOption]
+		}
 		resp, err := rm.sdkapi.UpgradeDomainWithContext(ctx, &svcsdk.UpgradeDomainInput{
-			AdvancedOptions:  nil,
+			AdvancedOptions:  advancedOptions,
 			DomainName:       latest.ko.Spec.Name,
 			PerformCheckOnly: nil,
 			TargetVersion:    desired.ko.Spec.EngineVersion,
@@ -129,34 +138,67 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		ko.Spec.AdvancedOptions = nil
 	}
 	if resp.DomainConfig.AdvancedSecurityOptions != nil && resp.DomainConfig.AdvancedSecurityOptions.Options != nil {
+		var samlOptions *v1alpha1.SAMLOptionsInput
+		if resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions != nil {
+			samlOptions = &v1alpha1.SAMLOptionsInput{
+				Enabled:               resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.Enabled,
+				RolesKey:              resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.RolesKey,
+				SessionTimeoutMinutes: resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.SessionTimeoutMinutes,
+				SubjectKey:            resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.SubjectKey,
+			}
+			if resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.Idp != nil {
+				samlOptions.IDp = &v1alpha1.SAMLIDp{
+					EntityID:        resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.Idp.EntityId,
+					MetadataContent: resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.Idp.MetadataContent,
+				}
+			}
+		}
 		ko.Spec.AdvancedSecurityOptions = &v1alpha1.AdvancedSecurityOptionsInput{
 			AnonymousAuthEnabled:        resp.DomainConfig.AdvancedSecurityOptions.Options.AnonymousAuthEnabled,
 			Enabled:                     resp.DomainConfig.AdvancedSecurityOptions.Options.Enabled,
 			InternalUserDatabaseEnabled: resp.DomainConfig.AdvancedSecurityOptions.Options.InternalUserDatabaseEnabled,
-			// TODO finish this
-			// SAMLOptions: &v1alpha1.SAMLOptionsInput{
-			// 	Enabled:               resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.Enabled,
-			// 	IDp:                   resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.Idp,
-			// 	MasterBackendRole:     nil,
-			// 	MasterUserName:        nil,
-			// 	RolesKey:              nil,
-			// 	SessionTimeoutMinutes: nil,
-			// 	SubjectKey:            nil,
-			// },
+			SAMLOptions:                 samlOptions,
 		}
 	} else {
 		ko.Spec.AdvancedSecurityOptions = nil
 	}
 	if resp.DomainConfig.AutoTuneOptions != nil {
-		// TODO
+		respMaintSchedules := resp.DomainConfig.AutoTuneOptions.Options.MaintenanceSchedules
+		maintSchedules := make([]*v1alpha1.AutoTuneMaintenanceSchedule, len(respMaintSchedules))
+		for i, sched := range respMaintSchedules {
+			maintSchedules[i] = &v1alpha1.AutoTuneMaintenanceSchedule{
+				CronExpressionForRecurrence: sched.CronExpressionForRecurrence,
+				Duration: &v1alpha1.Duration{
+					Unit:  sched.Duration.Unit,
+					Value: sched.Duration.Value,
+				},
+			}
+			if sched.StartAt != nil {
+				maintSchedules[i].StartAt = &v1.Time{Time: *sched.StartAt}
+			}
+		}
+		ko.Spec.AutoTuneOptions = &v1alpha1.AutoTuneOptionsInput{
+			DesiredState:         resp.DomainConfig.AutoTuneOptions.Options.DesiredState,
+			MaintenanceSchedules: maintSchedules,
+		}
 	} else {
 		ko.Spec.AutoTuneOptions = nil
 	}
 	if resp.DomainConfig.ClusterConfig != nil && resp.DomainConfig.ClusterConfig.Options != nil {
-		ko.Spec.ClusterConfig = &v1alpha1.ClusterConfig{
-			ColdStorageOptions: &v1alpha1.ColdStorageOptions{
+		var csOptions *v1alpha1.ColdStorageOptions
+		if resp.DomainConfig.ClusterConfig.Options.ColdStorageOptions != nil {
+			csOptions = &v1alpha1.ColdStorageOptions{
 				Enabled: resp.DomainConfig.ClusterConfig.Options.ColdStorageOptions.Enabled,
-			},
+			}
+		}
+		var zaConfig *v1alpha1.ZoneAwarenessConfig
+		if resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessConfig != nil {
+			zaConfig = &v1alpha1.ZoneAwarenessConfig{
+				AvailabilityZoneCount: resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessConfig.AvailabilityZoneCount,
+			}
+		}
+		ko.Spec.ClusterConfig = &v1alpha1.ClusterConfig{
+			ColdStorageOptions:     csOptions,
 			DedicatedMasterCount:   resp.DomainConfig.ClusterConfig.Options.DedicatedMasterCount,
 			DedicatedMasterEnabled: resp.DomainConfig.ClusterConfig.Options.DedicatedMasterEnabled,
 			DedicatedMasterType:    resp.DomainConfig.ClusterConfig.Options.DedicatedMasterType,
@@ -165,10 +207,8 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 			WarmCount:              resp.DomainConfig.ClusterConfig.Options.WarmCount,
 			WarmEnabled:            resp.DomainConfig.ClusterConfig.Options.WarmEnabled,
 			WarmType:               resp.DomainConfig.ClusterConfig.Options.WarmType,
-			ZoneAwarenessConfig: &v1alpha1.ZoneAwarenessConfig{
-				AvailabilityZoneCount: resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessConfig.AvailabilityZoneCount,
-			},
-			ZoneAwarenessEnabled: resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessEnabled,
+			ZoneAwarenessConfig:    zaConfig,
+			ZoneAwarenessEnabled:   resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessEnabled,
 		}
 	} else {
 		ko.Spec.ClusterConfig = nil
@@ -184,7 +224,13 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		ko.Spec.CognitoOptions = nil
 	}
 	if resp.DomainConfig.DomainEndpointOptions != nil {
-		// 	TODO
+		ko.Spec.DomainEndpointOptions = &v1alpha1.DomainEndpointOptions{
+			CustomEndpoint:               resp.DomainConfig.DomainEndpointOptions.Options.CustomEndpoint,
+			CustomEndpointCertificateARN: resp.DomainConfig.DomainEndpointOptions.Options.CustomEndpointCertificateArn,
+			CustomEndpointEnabled:        resp.DomainConfig.DomainEndpointOptions.Options.CustomEndpointEnabled,
+			EnforceHTTPS:                 resp.DomainConfig.DomainEndpointOptions.Options.EnforceHTTPS,
+			TLSSecurityPolicy:            resp.DomainConfig.DomainEndpointOptions.Options.TLSSecurityPolicy,
+		}
 	} else {
 		ko.Spec.DomainEndpointOptions = nil
 	}
@@ -245,7 +291,7 @@ func (rm *resourceManager) newCustomUpdateRequestPayload(
 	latest *resource,
 	delta *ackcompare.Delta,
 ) (*svcsdk.UpdateDomainConfigInput, error) {
-	res := &svcsdk.UpdateDomainConfigInput{}
+	res := &svcsdk.UpdateDomainConfigInput{DomainName: latest.ko.Spec.Name}
 
 	if desired.ko.Spec.AccessPolicies != nil && delta.DifferentAt("Spec.AccessPolicies") {
 		res.SetAccessPolicies(*desired.ko.Spec.AccessPolicies)
