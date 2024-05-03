@@ -87,7 +87,7 @@ def es_7_9_domain(os_client, resources: BootstrapResources):
     k8s.wait_resource_consumed_by_controller(ref)
     condition.assert_not_synced(ref)
 
-    # An OpenSerach Domain gets its `DomainStatus.Created` field set to
+    # An OpenSearch Domain gets its `DomainStatus.Created` field set to
     # `True` almost immediately, however the `DomainStatus.Processing` field
     # is set to `True` while OpenSearch is being installed onto the worker
     # node(s). If you attempt to delete a Domain that is both Created and
