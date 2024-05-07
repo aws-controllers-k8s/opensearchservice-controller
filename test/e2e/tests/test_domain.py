@@ -33,6 +33,8 @@ RESOURCE_PLURAL = 'domains'
 
 DELETE_WAIT_AFTER_SECONDS = 60*2
 
+MODIFY_WAIT_AFTER_SECONDS = 60 * 15
+
 # This is the time to wait *after* the domain returns Processing=False from the
 # Opensearch DescribeDomain API call and before we check to see that the CR's
 # Status.Conditions contains a True ResourceSynced condition.
@@ -87,7 +89,7 @@ def es_7_9_domain(os_client, resources: BootstrapResources):
     k8s.wait_resource_consumed_by_controller(ref)
     condition.assert_not_synced(ref)
 
-    # An OpenSerach Domain gets its `DomainStatus.Created` field set to
+    # An OpenSearch Domain gets its `DomainStatus.Created` field set to
     # `True` almost immediately, however the `DomainStatus.Processing` field
     # is set to `True` while OpenSearch is being installed onto the worker
     # node(s). If you attempt to delete a Domain that is both Created and
@@ -228,7 +230,7 @@ class TestDomain:
         latest = domain.get(resource.name)
 
         assert latest['DomainStatus']['EngineVersion'] == 'Elasticsearch_7.9'
-        assert latest['DomainStatus']['Created'] == True
+        assert latest['DomainStatus']['Created'] is True
         assert latest['DomainStatus']['ClusterConfig']['InstanceCount'] == resource.data_node_count
         assert latest['DomainStatus']['ClusterConfig']['ZoneAwarenessEnabled'] == resource.is_zone_aware
 
@@ -238,6 +240,28 @@ class TestDomain:
         assert cr is not None
         assert 'status' in cr
         domain.assert_endpoint(cr)
+
+        # now we will modify the engine version to test upgrades
+        # similar to creating a new domain, this takes a long time, often 20+ minutes
+        updates = {
+            "spec": {"engineVersion": "Elasticsearch_7.10"},
+        }
+        k8s.patch_custom_resource(ref, updates)
+
+        # wait for 15 minutes, it's always going to take at least this long
+        time.sleep(MODIFY_WAIT_AFTER_SECONDS)
+        # now loop to see if it's done, with a max elapsed time so the test doesn't run forever
+        count = 0
+        while count < 30:
+            count += 1
+            latest = domain.get(resource.name)
+            assert latest is not None
+            if latest['DomainStatus']['UpgradeProcessing'] is True:
+                time.sleep(CHECK_STATUS_WAIT_SECONDS)
+                continue
+            else:
+                assert latest['DomainStatus']['EngineVersion'] == "Elasticsearch_7.10"
+                break
 
     def test_create_delete_es_2d3m_multi_az_no_vpc_7_9(self, es_2d3m_multi_az_no_vpc_7_9_domain):
         ref, resource = es_2d3m_multi_az_no_vpc_7_9_domain
