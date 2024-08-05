@@ -15,6 +15,33 @@
 
 package v1alpha1
 
+type ActionSeverity string
+
+const (
+	ActionSeverity_HIGH   ActionSeverity = "HIGH"
+	ActionSeverity_MEDIUM ActionSeverity = "MEDIUM"
+	ActionSeverity_LOW    ActionSeverity = "LOW"
+)
+
+type ActionStatus string
+
+const (
+	ActionStatus_PENDING_UPDATE ActionStatus = "PENDING_UPDATE"
+	ActionStatus_IN_PROGRESS    ActionStatus = "IN_PROGRESS"
+	ActionStatus_FAILED         ActionStatus = "FAILED"
+	ActionStatus_COMPLETED      ActionStatus = "COMPLETED"
+	ActionStatus_NOT_ELIGIBLE   ActionStatus = "NOT_ELIGIBLE"
+	ActionStatus_ELIGIBLE       ActionStatus = "ELIGIBLE"
+)
+
+type ActionType string
+
+const (
+	ActionType_SERVICE_SOFTWARE_UPDATE ActionType = "SERVICE_SOFTWARE_UPDATE"
+	ActionType_JVM_HEAP_SIZE_TUNING    ActionType = "JVM_HEAP_SIZE_TUNING"
+	ActionType_JVM_YOUNG_GEN_TUNING    ActionType = "JVM_YOUNG_GEN_TUNING"
+)
+
 type AutoTuneDesiredState string
 
 const (
@@ -42,6 +69,33 @@ const (
 	AutoTuneType_SCHEDULED_ACTION AutoTuneType = "SCHEDULED_ACTION"
 )
 
+type ConfigChangeStatus string
+
+const (
+	ConfigChangeStatus_Pending          ConfigChangeStatus = "Pending"
+	ConfigChangeStatus_Initializing     ConfigChangeStatus = "Initializing"
+	ConfigChangeStatus_Validating       ConfigChangeStatus = "Validating"
+	ConfigChangeStatus_ValidationFailed ConfigChangeStatus = "ValidationFailed"
+	ConfigChangeStatus_ApplyingChanges  ConfigChangeStatus = "ApplyingChanges"
+	ConfigChangeStatus_Completed        ConfigChangeStatus = "Completed"
+	ConfigChangeStatus_PendingUserInput ConfigChangeStatus = "PendingUserInput"
+	ConfigChangeStatus_Cancelled        ConfigChangeStatus = "Cancelled"
+)
+
+type ConnectionMode string
+
+const (
+	ConnectionMode_DIRECT       ConnectionMode = "DIRECT"
+	ConnectionMode_VPC_ENDPOINT ConnectionMode = "VPC_ENDPOINT"
+)
+
+type DataSourceStatus string
+
+const (
+	DataSourceStatus_ACTIVE   DataSourceStatus = "ACTIVE"
+	DataSourceStatus_DISABLED DataSourceStatus = "DISABLED"
+)
+
 type DeploymentStatus string
 
 const (
@@ -58,6 +112,17 @@ const (
 	DescribePackagesFilterName_PackageID     DescribePackagesFilterName = "PackageID"
 	DescribePackagesFilterName_PackageName   DescribePackagesFilterName = "PackageName"
 	DescribePackagesFilterName_PackageStatus DescribePackagesFilterName = "PackageStatus"
+	DescribePackagesFilterName_PackageType   DescribePackagesFilterName = "PackageType"
+	DescribePackagesFilterName_EngineVersion DescribePackagesFilterName = "EngineVersion"
+)
+
+type DomainHealth string
+
+const (
+	DomainHealth_Red          DomainHealth = "Red"
+	DomainHealth_Yellow       DomainHealth = "Yellow"
+	DomainHealth_Green        DomainHealth = "Green"
+	DomainHealth_NotAvailable DomainHealth = "NotAvailable"
 )
 
 type DomainPackageStatus string
@@ -70,11 +135,45 @@ const (
 	DomainPackageStatus_DISSOCIATION_FAILED DomainPackageStatus = "DISSOCIATION_FAILED"
 )
 
+type DomainProcessingStatusType string
+
+const (
+	DomainProcessingStatusType_Creating                DomainProcessingStatusType = "Creating"
+	DomainProcessingStatusType_Active                  DomainProcessingStatusType = "Active"
+	DomainProcessingStatusType_Modifying               DomainProcessingStatusType = "Modifying"
+	DomainProcessingStatusType_UpgradingEngineVersion  DomainProcessingStatusType = "UpgradingEngineVersion"
+	DomainProcessingStatusType_UpdatingServiceSoftware DomainProcessingStatusType = "UpdatingServiceSoftware"
+	DomainProcessingStatusType_Isolated                DomainProcessingStatusType = "Isolated"
+	DomainProcessingStatusType_Deleting                DomainProcessingStatusType = "Deleting"
+)
+
+type DomainState string
+
+const (
+	DomainState_Active       DomainState = "Active"
+	DomainState_Processing   DomainState = "Processing"
+	DomainState_NotAvailable DomainState = "NotAvailable"
+)
+
+type DryRunMode string
+
+const (
+	DryRunMode_Basic   DryRunMode = "Basic"
+	DryRunMode_Verbose DryRunMode = "Verbose"
+)
+
 type EngineType string
 
 const (
 	EngineType_OpenSearch    EngineType = "OpenSearch"
 	EngineType_Elasticsearch EngineType = "Elasticsearch"
+)
+
+type IPAddressType string
+
+const (
+	IPAddressType_ipv4      IPAddressType = "ipv4"
+	IPAddressType_dualstack IPAddressType = "dualstack"
 )
 
 type InboundConnectionStatusCode string
@@ -90,6 +189,13 @@ const (
 	InboundConnectionStatusCode_DELETED            InboundConnectionStatusCode = "DELETED"
 )
 
+type InitiatedBy string
+
+const (
+	InitiatedBy_CUSTOMER InitiatedBy = "CUSTOMER"
+	InitiatedBy_SERVICE  InitiatedBy = "SERVICE"
+)
+
 type LogType string
 
 const (
@@ -97,6 +203,66 @@ const (
 	LogType_SEARCH_SLOW_LOGS    LogType = "SEARCH_SLOW_LOGS"
 	LogType_ES_APPLICATION_LOGS LogType = "ES_APPLICATION_LOGS"
 	LogType_AUDIT_LOGS          LogType = "AUDIT_LOGS"
+)
+
+type MaintenanceStatus string
+
+const (
+	MaintenanceStatus_PENDING     MaintenanceStatus = "PENDING"
+	MaintenanceStatus_IN_PROGRESS MaintenanceStatus = "IN_PROGRESS"
+	MaintenanceStatus_COMPLETED   MaintenanceStatus = "COMPLETED"
+	MaintenanceStatus_FAILED      MaintenanceStatus = "FAILED"
+	MaintenanceStatus_TIMED_OUT   MaintenanceStatus = "TIMED_OUT"
+)
+
+type MaintenanceType string
+
+const (
+	MaintenanceType_REBOOT_NODE            MaintenanceType = "REBOOT_NODE"
+	MaintenanceType_RESTART_SEARCH_PROCESS MaintenanceType = "RESTART_SEARCH_PROCESS"
+	MaintenanceType_RESTART_DASHBOARD      MaintenanceType = "RESTART_DASHBOARD"
+)
+
+type MasterNodeStatus string
+
+const (
+	MasterNodeStatus_Available   MasterNodeStatus = "Available"
+	MasterNodeStatus_UnAvailable MasterNodeStatus = "UnAvailable"
+)
+
+type NATuralLanguageQueryGenerationCurrentState string
+
+const (
+	NATuralLanguageQueryGenerationCurrentState_NOT_ENABLED         NATuralLanguageQueryGenerationCurrentState = "NOT_ENABLED"
+	NATuralLanguageQueryGenerationCurrentState_ENABLE_COMPLETE     NATuralLanguageQueryGenerationCurrentState = "ENABLE_COMPLETE"
+	NATuralLanguageQueryGenerationCurrentState_ENABLE_IN_PROGRESS  NATuralLanguageQueryGenerationCurrentState = "ENABLE_IN_PROGRESS"
+	NATuralLanguageQueryGenerationCurrentState_ENABLE_FAILED       NATuralLanguageQueryGenerationCurrentState = "ENABLE_FAILED"
+	NATuralLanguageQueryGenerationCurrentState_DISABLE_COMPLETE    NATuralLanguageQueryGenerationCurrentState = "DISABLE_COMPLETE"
+	NATuralLanguageQueryGenerationCurrentState_DISABLE_IN_PROGRESS NATuralLanguageQueryGenerationCurrentState = "DISABLE_IN_PROGRESS"
+	NATuralLanguageQueryGenerationCurrentState_DISABLE_FAILED      NATuralLanguageQueryGenerationCurrentState = "DISABLE_FAILED"
+)
+
+type NATuralLanguageQueryGenerationDesiredState string
+
+const (
+	NATuralLanguageQueryGenerationDesiredState_ENABLED  NATuralLanguageQueryGenerationDesiredState = "ENABLED"
+	NATuralLanguageQueryGenerationDesiredState_DISABLED NATuralLanguageQueryGenerationDesiredState = "DISABLED"
+)
+
+type NodeStatus string
+
+const (
+	NodeStatus_Active       NodeStatus = "Active"
+	NodeStatus_StandBy      NodeStatus = "StandBy"
+	NodeStatus_NotAvailable NodeStatus = "NotAvailable"
+)
+
+type NodeType string
+
+const (
+	NodeType_Data      NodeType = "Data"
+	NodeType_Ultrawarm NodeType = "Ultrawarm"
+	NodeType_Master    NodeType = "Master"
 )
 
 type OpenSearchPartitionInstanceType string
@@ -136,6 +302,14 @@ const (
 	OpenSearchPartitionInstanceType_t3_large_search          OpenSearchPartitionInstanceType = "t3.large.search"
 	OpenSearchPartitionInstanceType_t3_xlarge_search         OpenSearchPartitionInstanceType = "t3.xlarge.search"
 	OpenSearchPartitionInstanceType_t3_2xlarge_search        OpenSearchPartitionInstanceType = "t3.2xlarge.search"
+	OpenSearchPartitionInstanceType_or1_medium_search        OpenSearchPartitionInstanceType = "or1.medium.search"
+	OpenSearchPartitionInstanceType_or1_large_search         OpenSearchPartitionInstanceType = "or1.large.search"
+	OpenSearchPartitionInstanceType_or1_xlarge_search        OpenSearchPartitionInstanceType = "or1.xlarge.search"
+	OpenSearchPartitionInstanceType_or1_2xlarge_search       OpenSearchPartitionInstanceType = "or1.2xlarge.search"
+	OpenSearchPartitionInstanceType_or1_4xlarge_search       OpenSearchPartitionInstanceType = "or1.4xlarge.search"
+	OpenSearchPartitionInstanceType_or1_8xlarge_search       OpenSearchPartitionInstanceType = "or1.8xlarge.search"
+	OpenSearchPartitionInstanceType_or1_12xlarge_search      OpenSearchPartitionInstanceType = "or1.12xlarge.search"
+	OpenSearchPartitionInstanceType_or1_16xlarge_search      OpenSearchPartitionInstanceType = "or1.16xlarge.search"
 	OpenSearchPartitionInstanceType_ultrawarm1_medium_search OpenSearchPartitionInstanceType = "ultrawarm1.medium.search"
 	OpenSearchPartitionInstanceType_ultrawarm1_large_search  OpenSearchPartitionInstanceType = "ultrawarm1.large.search"
 	OpenSearchPartitionInstanceType_ultrawarm1_xlarge_search OpenSearchPartitionInstanceType = "ultrawarm1.xlarge.search"
@@ -256,6 +430,21 @@ type PackageType string
 
 const (
 	PackageType_TXT_DICTIONARY PackageType = "TXT-DICTIONARY"
+	PackageType_ZIP_PLUGIN     PackageType = "ZIP-PLUGIN"
+)
+
+type PrincipalType string
+
+const (
+	PrincipalType_AWS_ACCOUNT PrincipalType = "AWS_ACCOUNT"
+	PrincipalType_AWS_SERVICE PrincipalType = "AWS_SERVICE"
+)
+
+type PropertyValueType string
+
+const (
+	PropertyValueType_PLAIN_TEXT       PropertyValueType = "PLAIN_TEXT"
+	PropertyValueType_STRINGIFIED_JSON PropertyValueType = "STRINGIFIED_JSON"
 )
 
 type ReservedInstancePaymentOption string
@@ -273,6 +462,14 @@ const (
 	RollbackOnDisable_DEFAULT_ROLLBACK RollbackOnDisable = "DEFAULT_ROLLBACK"
 )
 
+type ScheduleAt string
+
+const (
+	ScheduleAt_NOW             ScheduleAt = "NOW"
+	ScheduleAt_TIMESTAMP       ScheduleAt = "TIMESTAMP"
+	ScheduleAt_OFF_PEAK_WINDOW ScheduleAt = "OFF_PEAK_WINDOW"
+)
+
 type ScheduledAutoTuneActionType string
 
 const (
@@ -288,11 +485,26 @@ const (
 	ScheduledAutoTuneSeverityType_HIGH   ScheduledAutoTuneSeverityType = "HIGH"
 )
 
+type ScheduledBy string
+
+const (
+	ScheduledBy_CUSTOMER ScheduledBy = "CUSTOMER"
+	ScheduledBy_SYSTEM   ScheduledBy = "SYSTEM"
+)
+
+type SkipUnavailableStatus string
+
+const (
+	SkipUnavailableStatus_ENABLED  SkipUnavailableStatus = "ENABLED"
+	SkipUnavailableStatus_DISABLED SkipUnavailableStatus = "DISABLED"
+)
+
 type TLSSecurityPolicy string
 
 const (
-	TLSSecurityPolicy_Policy_Min_TLS_1_0_2019_07 TLSSecurityPolicy = "Policy-Min-TLS-1-0-2019-07"
-	TLSSecurityPolicy_Policy_Min_TLS_1_2_2019_07 TLSSecurityPolicy = "Policy-Min-TLS-1-2-2019-07"
+	TLSSecurityPolicy_Policy_Min_TLS_1_0_2019_07     TLSSecurityPolicy = "Policy-Min-TLS-1-0-2019-07"
+	TLSSecurityPolicy_Policy_Min_TLS_1_2_2019_07     TLSSecurityPolicy = "Policy-Min-TLS-1-2-2019-07"
+	TLSSecurityPolicy_Policy_Min_TLS_1_2_PFS_2023_10 TLSSecurityPolicy = "Policy-Min-TLS-1-2-PFS-2023-10"
 )
 
 type TimeUnit string
@@ -318,6 +530,25 @@ const (
 	UpgradeStep_UPGRADE           UpgradeStep = "UPGRADE"
 )
 
+type VPCEndpointErrorCode string
+
+const (
+	VPCEndpointErrorCode_ENDPOINT_NOT_FOUND VPCEndpointErrorCode = "ENDPOINT_NOT_FOUND"
+	VPCEndpointErrorCode_SERVER_ERROR       VPCEndpointErrorCode = "SERVER_ERROR"
+)
+
+type VPCEndpointStatus string
+
+const (
+	VPCEndpointStatus_CREATING      VPCEndpointStatus = "CREATING"
+	VPCEndpointStatus_CREATE_FAILED VPCEndpointStatus = "CREATE_FAILED"
+	VPCEndpointStatus_ACTIVE        VPCEndpointStatus = "ACTIVE"
+	VPCEndpointStatus_UPDATING      VPCEndpointStatus = "UPDATING"
+	VPCEndpointStatus_UPDATE_FAILED VPCEndpointStatus = "UPDATE_FAILED"
+	VPCEndpointStatus_DELETING      VPCEndpointStatus = "DELETING"
+	VPCEndpointStatus_DELETE_FAILED VPCEndpointStatus = "DELETE_FAILED"
+)
+
 type VolumeType string
 
 const (
@@ -325,4 +556,12 @@ const (
 	VolumeType_gp2      VolumeType = "gp2"
 	VolumeType_io1      VolumeType = "io1"
 	VolumeType_gp3      VolumeType = "gp3"
+)
+
+type ZoneStatus string
+
+const (
+	ZoneStatus_Active       ZoneStatus = "Active"
+	ZoneStatus_StandBy      ZoneStatus = "StandBy"
+	ZoneStatus_NotAvailable ZoneStatus = "NotAvailable"
 )
