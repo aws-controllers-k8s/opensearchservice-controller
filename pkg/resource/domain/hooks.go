@@ -185,6 +185,7 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		}
 		ko.Spec.AutoTuneOptions = &v1alpha1.AutoTuneOptionsInput{
 			DesiredState:         aws.String(string(resp.DomainConfig.AutoTuneOptions.Options.DesiredState)),
+			UseOffPeakWindow:     resp.DomainConfig.AutoTuneOptions.Options.UseOffPeakWindow,
 			MaintenanceSchedules: maintSchedules,
 		}
 	} else {
@@ -205,11 +206,18 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 			}
 		}
 		ko.Spec.ClusterConfig = &v1alpha1.ClusterConfig{
-			ColdStorageOptions:     csOptions,
-			DedicatedMasterEnabled: resp.DomainConfig.ClusterConfig.Options.DedicatedMasterEnabled,
-			WarmEnabled:            resp.DomainConfig.ClusterConfig.Options.WarmEnabled,
-			ZoneAwarenessConfig:    zaConfig,
-			ZoneAwarenessEnabled:   resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessEnabled,
+			ColdStorageOptions:        csOptions,
+			DedicatedMasterCount:      int64OrNil(resp.DomainConfig.ClusterConfig.Options.DedicatedMasterCount),
+			DedicatedMasterEnabled:    resp.DomainConfig.ClusterConfig.Options.DedicatedMasterEnabled,
+			DedicatedMasterType:       aws.String(string(resp.DomainConfig.ClusterConfig.Options.DedicatedMasterType)),
+			InstanceCount:             int64OrNil(resp.DomainConfig.ClusterConfig.Options.InstanceCount),
+			InstanceType:              aws.String(string(resp.DomainConfig.ClusterConfig.Options.InstanceType)),
+			WarmCount:                 int64OrNil(resp.DomainConfig.ClusterConfig.Options.WarmCount),
+			WarmEnabled:               resp.DomainConfig.ClusterConfig.Options.WarmEnabled,
+			WarmType:                  aws.String(string(resp.DomainConfig.ClusterConfig.Options.WarmType)),
+			ZoneAwarenessConfig:       zaConfig,
+			ZoneAwarenessEnabled:      resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessEnabled,
+			MultiAZWithStandbyEnabled: resp.DomainConfig.ClusterConfig.Options.MultiAZWithStandbyEnabled,
 		}
 		if resp.DomainConfig.ClusterConfig.Options.DedicatedMasterCount != nil {
 			ko.Spec.ClusterConfig.DedicatedMasterCount = aws.Int64(int64(*resp.DomainConfig.ClusterConfig.Options.DedicatedMasterCount))
@@ -284,6 +292,11 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		ko.Spec.EngineVersion = resp.DomainConfig.EngineVersion.Options
 	} else {
 		ko.Spec.EngineVersion = nil
+	}
+	if resp.DomainConfig.IPAddressType != nil {
+		ko.Spec.IPAddressType = aws.String(string(resp.DomainConfig.IPAddressType.Options))
+	} else {
+		ko.Spec.IPAddressType = nil
 	}
 	if resp.DomainConfig.NodeToNodeEncryptionOptions != nil {
 		ko.Spec.NodeToNodeEncryptionOptions = &v1alpha1.NodeToNodeEncryptionOptions{
@@ -401,6 +414,9 @@ func (rm *resourceManager) newCustomUpdateRequestPayload(
 		if desired.ko.Spec.AutoTuneOptions.DesiredState != nil {
 			f3.DesiredState = svcsdktypes.AutoTuneDesiredState(*desired.ko.Spec.AutoTuneOptions.DesiredState)
 		}
+		if desired.ko.Spec.AutoTuneOptions.UseOffPeakWindow != nil {
+			f3.UseOffPeakWindow = desired.ko.Spec.AutoTuneOptions.UseOffPeakWindow
+		}
 		if desired.ko.Spec.AutoTuneOptions.MaintenanceSchedules != nil {
 			f3f1 := []svcsdktypes.AutoTuneMaintenanceSchedule{}
 			for _, f3f1iter := range desired.ko.Spec.AutoTuneOptions.MaintenanceSchedules {
@@ -470,6 +486,9 @@ func (rm *resourceManager) newCustomUpdateRequestPayload(
 		}
 		if desired.ko.Spec.ClusterConfig.ZoneAwarenessEnabled != nil {
 			f4.ZoneAwarenessEnabled = desired.ko.Spec.ClusterConfig.ZoneAwarenessEnabled
+		}
+		if desired.ko.Spec.ClusterConfig.MultiAZWithStandbyEnabled != nil {
+			f4.MultiAZWithStandbyEnabled = desired.ko.Spec.ClusterConfig.MultiAZWithStandbyEnabled
 		}
 		res.ClusterConfig = f4
 	}
@@ -586,5 +605,17 @@ func (rm *resourceManager) newCustomUpdateRequestPayload(
 		res.VPCOptions = f14
 	}
 
+	if desired.ko.Spec.IPAddressType != nil && delta.DifferentAt("Spec.IPAddressType") {
+		res.IPAddressType = svcsdktypes.IPAddressType(*desired.ko.Spec.IPAddressType)
+	}
+
 	return res, nil
+}
+
+func int64OrNil(num *int32) *int64 {
+	if num == nil {
+		return nil
+	}
+
+	return aws.Int64(int64(*num))
 }
