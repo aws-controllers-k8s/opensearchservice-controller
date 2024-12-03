@@ -305,6 +305,41 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 	} else {
 		ko.Spec.NodeToNodeEncryptionOptions = nil
 	}
+	if resp.DomainConfig.SoftwareUpdateOptions != nil {
+		ko.Spec.SoftwareUpdateOptions = &v1alpha1.SoftwareUpdateOptions{
+			AutoSoftwareUpdateEnabled: resp.DomainConfig.SoftwareUpdateOptions.Options.AutoSoftwareUpdateEnabled,
+		}
+	} else {
+		ko.Spec.SoftwareUpdateOptions = nil
+	}
+	if resp.DomainConfig.AIMLOptions != nil && resp.DomainConfig.AIMLOptions.Options.NaturalLanguageQueryGenerationOptions != nil {
+		if resp.DomainConfig.AIMLOptions.Options.NaturalLanguageQueryGenerationOptions != nil {
+			ko.Spec.AIMLOptions = &v1alpha1.AIMLOptionsInput{
+				NATuralLanguageQueryGenerationOptions: &v1alpha1.NATuralLanguageQueryGenerationOptionsInput{
+					DesiredState: resp.DomainConfig.AIMLOptions.Options.NaturalLanguageQueryGenerationOptions.DesiredState,
+				},
+			}
+		}
+	} else {
+		ko.Spec.AIMLOptions = nil
+	}
+	if resp.DomainConfig.OffPeakWindowOptions != nil && resp.DomainConfig.OffPeakWindowOptions.Options != nil {
+		var offPeakWindow *v1alpha1.OffPeakWindow
+		if resp.DomainConfig.OffPeakWindowOptions.Options.OffPeakWindow != nil {
+			offPeakWindow = &v1alpha1.OffPeakWindow{
+				WindowStartTime: &v1alpha1.WindowStartTime{
+					Hours:   resp.DomainConfig.OffPeakWindowOptions.Options.OffPeakWindow.WindowStartTime.Hours,
+					Minutes: resp.DomainConfig.OffPeakWindowOptions.Options.OffPeakWindow.WindowStartTime.Minutes,
+				},
+			}
+		}
+		ko.Spec.OffPeakWindowOptions = &v1alpha1.OffPeakWindowOptions{
+			Enabled:       resp.DomainConfig.OffPeakWindowOptions.Options.Enabled,
+			OffPeakWindow: offPeakWindow,
+		}
+	} else {
+		ko.Spec.OffPeakWindowOptions = nil
+	}
 
 	rm.setStatusDefaults(ko)
 
@@ -607,6 +642,48 @@ func (rm *resourceManager) newCustomUpdateRequestPayload(
 
 	if desired.ko.Spec.IPAddressType != nil && delta.DifferentAt("Spec.IPAddressType") {
 		res.IPAddressType = svcsdktypes.IPAddressType(*desired.ko.Spec.IPAddressType)
+	}
+
+	if desired.ko.Spec.SoftwareUpdateOptions != nil && delta.DifferentAt("Spec.SoftwareUpdateOptions") {
+		f15 := &svcsdk.SoftwareUpdateOptions{}
+		if desired.ko.Spec.SoftwareUpdateOptions.AutoSoftwareUpdateEnabled != nil {
+			f15.SetAutoSoftwareUpdateEnabled(*desired.ko.Spec.SoftwareUpdateOptions.AutoSoftwareUpdateEnabled)
+		}
+		res.SetSoftwareUpdateOptions(f15)
+	}
+
+	if desired.ko.Spec.AIMLOptions != nil && delta.DifferentAt("Spec.AIMLOptions") {
+		f16 := &svcsdk.AIMLOptionsInput_{}
+		if desired.ko.Spec.AIMLOptions.NATuralLanguageQueryGenerationOptions != nil {
+			f16f0 := &svcsdk.NaturalLanguageQueryGenerationOptionsInput_{}
+			if desired.ko.Spec.AIMLOptions.NATuralLanguageQueryGenerationOptions.DesiredState != nil {
+				f16f0.SetDesiredState(*desired.ko.Spec.AIMLOptions.NATuralLanguageQueryGenerationOptions.DesiredState)
+			}
+			f16.SetNaturalLanguageQueryGenerationOptions(f16f0)
+		}
+		res.SetAIMLOptions(f16)
+	}
+
+	if desired.ko.Spec.OffPeakWindowOptions != nil && delta.DifferentAt("Spec.OffPeakWindowOptions") {
+		f17 := &svcsdk.OffPeakWindowOptions{}
+		if desired.ko.Spec.OffPeakWindowOptions.Enabled != nil {
+			f17.SetEnabled(*desired.ko.Spec.OffPeakWindowOptions.Enabled)
+		}
+		if desired.ko.Spec.OffPeakWindowOptions.OffPeakWindow != nil {
+			f17f1 := &svcsdk.OffPeakWindow{}
+			if desired.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime != nil {
+				f17f1f1 := &svcsdk.WindowStartTime{}
+				if desired.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Hours != nil {
+					f17f1f1.SetHours(*desired.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Hours)
+				}
+				if desired.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Minutes != nil {
+					f17f1f1.SetMinutes(*desired.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Minutes)
+				}
+				f17f1.SetWindowStartTime(f17f1f1)
+			}
+			f17.SetOffPeakWindow(f17f1)
+		}
+		res.SetOffPeakWindowOptions(f17)
 	}
 
 	return res, nil
