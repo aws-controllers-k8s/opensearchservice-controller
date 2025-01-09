@@ -16,6 +16,7 @@ package domain
 import (
 	"context"
 	"errors"
+
 	"github.com/aws-controllers-k8s/opensearchservice-controller/apis/v1alpha1"
 	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
 	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
@@ -179,6 +180,7 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		}
 		ko.Spec.AutoTuneOptions = &v1alpha1.AutoTuneOptionsInput{
 			DesiredState:         resp.DomainConfig.AutoTuneOptions.Options.DesiredState,
+			UseOffPeakWindow:     resp.DomainConfig.AutoTuneOptions.Options.UseOffPeakWindow,
 			MaintenanceSchedules: maintSchedules,
 		}
 	} else {
@@ -198,17 +200,18 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 			}
 		}
 		ko.Spec.ClusterConfig = &v1alpha1.ClusterConfig{
-			ColdStorageOptions:     csOptions,
-			DedicatedMasterCount:   resp.DomainConfig.ClusterConfig.Options.DedicatedMasterCount,
-			DedicatedMasterEnabled: resp.DomainConfig.ClusterConfig.Options.DedicatedMasterEnabled,
-			DedicatedMasterType:    resp.DomainConfig.ClusterConfig.Options.DedicatedMasterType,
-			InstanceCount:          resp.DomainConfig.ClusterConfig.Options.InstanceCount,
-			InstanceType:           resp.DomainConfig.ClusterConfig.Options.InstanceType,
-			WarmCount:              resp.DomainConfig.ClusterConfig.Options.WarmCount,
-			WarmEnabled:            resp.DomainConfig.ClusterConfig.Options.WarmEnabled,
-			WarmType:               resp.DomainConfig.ClusterConfig.Options.WarmType,
-			ZoneAwarenessConfig:    zaConfig,
-			ZoneAwarenessEnabled:   resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessEnabled,
+			ColdStorageOptions:        csOptions,
+			DedicatedMasterCount:      resp.DomainConfig.ClusterConfig.Options.DedicatedMasterCount,
+			DedicatedMasterEnabled:    resp.DomainConfig.ClusterConfig.Options.DedicatedMasterEnabled,
+			DedicatedMasterType:       resp.DomainConfig.ClusterConfig.Options.DedicatedMasterType,
+			InstanceCount:             resp.DomainConfig.ClusterConfig.Options.InstanceCount,
+			InstanceType:              resp.DomainConfig.ClusterConfig.Options.InstanceType,
+			WarmCount:                 resp.DomainConfig.ClusterConfig.Options.WarmCount,
+			WarmEnabled:               resp.DomainConfig.ClusterConfig.Options.WarmEnabled,
+			WarmType:                  resp.DomainConfig.ClusterConfig.Options.WarmType,
+			ZoneAwarenessConfig:       zaConfig,
+			ZoneAwarenessEnabled:      resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessEnabled,
+			MultiAZWithStandbyEnabled: resp.DomainConfig.ClusterConfig.Options.MultiAZWithStandbyEnabled,
 		}
 	} else {
 		ko.Spec.ClusterConfig = nil
@@ -258,12 +261,52 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 	} else {
 		ko.Spec.EngineVersion = nil
 	}
+	if resp.DomainConfig.IPAddressType != nil {
+		ko.Spec.IPAddressType = resp.DomainConfig.IPAddressType.Options
+	} else {
+		ko.Spec.IPAddressType = nil
+	}
 	if resp.DomainConfig.NodeToNodeEncryptionOptions != nil {
 		ko.Spec.NodeToNodeEncryptionOptions = &v1alpha1.NodeToNodeEncryptionOptions{
 			Enabled: resp.DomainConfig.NodeToNodeEncryptionOptions.Options.Enabled,
 		}
 	} else {
 		ko.Spec.NodeToNodeEncryptionOptions = nil
+	}
+	if resp.DomainConfig.SoftwareUpdateOptions != nil {
+		ko.Spec.SoftwareUpdateOptions = &v1alpha1.SoftwareUpdateOptions{
+			AutoSoftwareUpdateEnabled: resp.DomainConfig.SoftwareUpdateOptions.Options.AutoSoftwareUpdateEnabled,
+		}
+	} else {
+		ko.Spec.SoftwareUpdateOptions = nil
+	}
+	if resp.DomainConfig.AIMLOptions != nil && resp.DomainConfig.AIMLOptions.Options != nil {
+		if resp.DomainConfig.AIMLOptions.Options.NaturalLanguageQueryGenerationOptions != nil {
+			ko.Spec.AIMLOptions = &v1alpha1.AIMLOptionsInput{
+				NATuralLanguageQueryGenerationOptions: &v1alpha1.NATuralLanguageQueryGenerationOptionsInput{
+					DesiredState: resp.DomainConfig.AIMLOptions.Options.NaturalLanguageQueryGenerationOptions.DesiredState,
+				},
+			}
+		}
+	} else {
+		ko.Spec.AIMLOptions = nil
+	}
+	if resp.DomainConfig.OffPeakWindowOptions != nil && resp.DomainConfig.OffPeakWindowOptions.Options != nil {
+		var offPeakWindow *v1alpha1.OffPeakWindow
+		if resp.DomainConfig.OffPeakWindowOptions.Options.OffPeakWindow != nil {
+			offPeakWindow = &v1alpha1.OffPeakWindow{
+				WindowStartTime: &v1alpha1.WindowStartTime{
+					Hours:   resp.DomainConfig.OffPeakWindowOptions.Options.OffPeakWindow.WindowStartTime.Hours,
+					Minutes: resp.DomainConfig.OffPeakWindowOptions.Options.OffPeakWindow.WindowStartTime.Minutes,
+				},
+			}
+		}
+		ko.Spec.OffPeakWindowOptions = &v1alpha1.OffPeakWindowOptions{
+			Enabled:       resp.DomainConfig.OffPeakWindowOptions.Options.Enabled,
+			OffPeakWindow: offPeakWindow,
+		}
+	} else {
+		ko.Spec.OffPeakWindowOptions = nil
 	}
 
 	rm.setStatusDefaults(ko)
@@ -370,6 +413,9 @@ func (rm *resourceManager) newCustomUpdateRequestPayload(
 		if desired.ko.Spec.AutoTuneOptions.DesiredState != nil {
 			f3.SetDesiredState(*desired.ko.Spec.AutoTuneOptions.DesiredState)
 		}
+		if desired.ko.Spec.AutoTuneOptions.UseOffPeakWindow != nil {
+			f3.SetUseOffPeakWindow(*desired.ko.Spec.AutoTuneOptions.UseOffPeakWindow)
+		}
 		if desired.ko.Spec.AutoTuneOptions.MaintenanceSchedules != nil {
 			f3f1 := []*svcsdk.AutoTuneMaintenanceSchedule{}
 			for _, f3f1iter := range desired.ko.Spec.AutoTuneOptions.MaintenanceSchedules {
@@ -439,6 +485,9 @@ func (rm *resourceManager) newCustomUpdateRequestPayload(
 		}
 		if desired.ko.Spec.ClusterConfig.ZoneAwarenessEnabled != nil {
 			f4.SetZoneAwarenessEnabled(*desired.ko.Spec.ClusterConfig.ZoneAwarenessEnabled)
+		}
+		if desired.ko.Spec.ClusterConfig.MultiAZWithStandbyEnabled != nil {
+			f4.SetMultiAZWithStandbyEnabled(*desired.ko.Spec.ClusterConfig.MultiAZWithStandbyEnabled)
 		}
 		res.SetClusterConfig(f4)
 	}
@@ -555,6 +604,52 @@ func (rm *resourceManager) newCustomUpdateRequestPayload(
 			f14.SetSubnetIds(f14f1)
 		}
 		res.SetVPCOptions(f14)
+	}
+
+	if desired.ko.Spec.IPAddressType != nil && delta.DifferentAt("Spec.IPAddressType") {
+		res.SetIPAddressType(*desired.ko.Spec.IPAddressType)
+	}
+
+	if desired.ko.Spec.SoftwareUpdateOptions != nil && delta.DifferentAt("Spec.SoftwareUpdateOptions") {
+		f15 := &svcsdk.SoftwareUpdateOptions{}
+		if desired.ko.Spec.SoftwareUpdateOptions.AutoSoftwareUpdateEnabled != nil {
+			f15.SetAutoSoftwareUpdateEnabled(*desired.ko.Spec.SoftwareUpdateOptions.AutoSoftwareUpdateEnabled)
+		}
+		res.SetSoftwareUpdateOptions(f15)
+	}
+
+	if desired.ko.Spec.AIMLOptions != nil && delta.DifferentAt("Spec.AIMLOptions") {
+		f16 := &svcsdk.AIMLOptionsInput_{}
+		if desired.ko.Spec.AIMLOptions.NATuralLanguageQueryGenerationOptions != nil {
+			f16f0 := &svcsdk.NaturalLanguageQueryGenerationOptionsInput_{}
+			if desired.ko.Spec.AIMLOptions.NATuralLanguageQueryGenerationOptions.DesiredState != nil {
+				f16f0.SetDesiredState(*desired.ko.Spec.AIMLOptions.NATuralLanguageQueryGenerationOptions.DesiredState)
+			}
+			f16.SetNaturalLanguageQueryGenerationOptions(f16f0)
+		}
+		res.SetAIMLOptions(f16)
+	}
+
+	if desired.ko.Spec.OffPeakWindowOptions != nil && delta.DifferentAt("Spec.OffPeakWindowOptions") {
+		f17 := &svcsdk.OffPeakWindowOptions{}
+		if desired.ko.Spec.OffPeakWindowOptions.Enabled != nil {
+			f17.SetEnabled(*desired.ko.Spec.OffPeakWindowOptions.Enabled)
+		}
+		if desired.ko.Spec.OffPeakWindowOptions.OffPeakWindow != nil {
+			f17f1 := &svcsdk.OffPeakWindow{}
+			if desired.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime != nil {
+				f17f1f1 := &svcsdk.WindowStartTime{}
+				if desired.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Hours != nil {
+					f17f1f1.SetHours(*desired.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Hours)
+				}
+				if desired.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Minutes != nil {
+					f17f1f1.SetMinutes(*desired.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Minutes)
+				}
+				f17f1.SetWindowStartTime(f17f1f1)
+			}
+			f17.SetOffPeakWindow(f17f1)
+		}
+		res.SetOffPeakWindowOptions(f17)
 	}
 
 	return res, nil
