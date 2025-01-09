@@ -312,7 +312,7 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 	} else {
 		ko.Spec.SoftwareUpdateOptions = nil
 	}
-	if resp.DomainConfig.AIMLOptions != nil && resp.DomainConfig.AIMLOptions.Options.NaturalLanguageQueryGenerationOptions != nil {
+	if resp.DomainConfig.AIMLOptions != nil {
 		if resp.DomainConfig.AIMLOptions.Options.NaturalLanguageQueryGenerationOptions != nil {
 			ko.Spec.AIMLOptions = &v1alpha1.AIMLOptionsInput{
 				NATuralLanguageQueryGenerationOptions: &v1alpha1.NATuralLanguageQueryGenerationOptionsInput{
