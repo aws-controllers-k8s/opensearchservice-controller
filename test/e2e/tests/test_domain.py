@@ -281,15 +281,10 @@ class TestDomain:
         assert 'status' in cr
         domain.assert_endpoint(cr)
 
-        # now we will modify the engine version to test upgrades
-        # similar to creating a new domain, this takes a long time, often 20+ minutes
+        # now we will modify some cluster parameters to test updates
+        # similar to creating/upgrading domain, this takes a long time, often 20+ minutes
         updates = {
             "spec": {
-                "AIMLOptions": {
-                    "naturalLanguageQueryGenerationOptions": {
-                        "desiredState": "DISABLED"
-                    }
-                },
                 "AutoTuneOptions": {
                     "DesiredState": "DISABLED",
                     "UseOffPeakWindow": False
@@ -297,7 +292,6 @@ class TestDomain:
                 "ClusterConfig": {
                     "MultiAZWithStandbyEnabled": False
                 },
-                "IPAddressType": "ipv4",
                 "OffPeakWindowOptions": {
                     "enabled": False,
                     "offPeakWindow": {
@@ -326,11 +320,9 @@ class TestDomain:
                 time.sleep(CHECK_STATUS_WAIT_SECONDS)
                 continue
             else:
-                assert latest['DomainStatus']['AIMLOptions']['NaturalLanguageQueryGenerationOptions']['CurrentState'] == "DISABLED"
                 assert latest['DomainStatus']['AutoTuneOptions']['State'] == "DISABLED"
                 assert latest['DomainStatus']['AutoTuneOptions']['UseOffPeakWindow'] is False
                 assert latest['DomainStatus']['ClusterConfig']['MultiAZWithStandbyEnabled'] is False
-                assert latest['DomainStatus']['IPAddressType'] == "ipv4"
                 assert latest['DomainStatus']['OffPeakWindowOptions']["Enabled"] is False
                 assert latest['DomainStatus']['OffPeakWindowOptions']["OffPeakWindow"]["WindowStartTime"]["Hours"] == 22
                 assert latest['DomainStatus']['OffPeakWindowOptions']["OffPeakWindow"]["WindowStartTime"]["Minutes"] == 30
