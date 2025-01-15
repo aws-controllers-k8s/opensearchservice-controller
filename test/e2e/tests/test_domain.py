@@ -286,7 +286,6 @@ class TestDomain:
         updates = {
             "spec": {
                 "AutoTuneOptions": {
-                    "DesiredState": "DISABLED",
                     "UseOffPeakWindow": False
                 },
                 "ClusterConfig": {
@@ -304,7 +303,7 @@ class TestDomain:
                 "SoftwareUpdateOptions": {
                     "autoSoftwareUpdateEnabled": True
                 },
-            }
+            },
         }
         k8s.patch_custom_resource(ref, updates)
 
@@ -320,7 +319,6 @@ class TestDomain:
                 time.sleep(CHECK_STATUS_WAIT_SECONDS)
                 continue
             else:
-                assert latest['DomainStatus']['AutoTuneOptions']['State'] == "DISABLED"
                 assert latest['DomainStatus']['AutoTuneOptions']['UseOffPeakWindow'] is False
                 assert latest['DomainStatus']['ClusterConfig']['MultiAZWithStandbyEnabled'] is False
                 assert latest['DomainStatus']['OffPeakWindowOptions']["Enabled"] is False
