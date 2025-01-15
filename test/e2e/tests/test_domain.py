@@ -300,8 +300,8 @@ class TestDomain:
                 },
                 "SoftwareUpdateOptions": {
                     "autoSoftwareUpdateEnabled": True
-                },
-            },
+                }
+            }
         }
         k8s.patch_custom_resource(ref, updates)
         time.sleep(CHECK_STATUS_WAIT_SECONDS)
