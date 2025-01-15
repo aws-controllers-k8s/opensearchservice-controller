@@ -281,8 +281,7 @@ class TestDomain:
         assert 'status' in cr
         domain.assert_endpoint(cr)
 
-        # now we will modify some cluster parameters to test updates
-        # similar to creating/upgrading domain, this takes a long time, often 20+ minutes
+        # modify some cluster parameters to test updates
         updates = {
             "spec": {
                 "AutoTuneOptions": {
@@ -306,25 +305,15 @@ class TestDomain:
             },
         }
         k8s.patch_custom_resource(ref, updates)
+        k8s.wait_on_condition(ref, condition.CONDITION_TYPE_RESOURCE_SYNCED)
+        latest = domain.get(resource.name)
+        print("latest:", latest)
 
-        # wait for 15 minutes, it's always going to take at least this long
-        time.sleep(MODIFY_WAIT_AFTER_SECONDS)
-        # now loop to see if it's done, with a max elapsed time so the test doesn't run forever
-        count = 0
-        while count < 30:
-            count += 1
-            latest = domain.get(resource.name)
-            assert latest is not None
-            if latest['DomainStatus']['UpgradeProcessing'] is True:
-                time.sleep(CHECK_STATUS_WAIT_SECONDS)
-                continue
-            else:
-                assert latest['DomainStatus']['AutoTuneOptions']['UseOffPeakWindow'] is False
-                assert latest['DomainStatus']['ClusterConfig']['MultiAZWithStandbyEnabled'] is False
-                assert latest['DomainStatus']['OffPeakWindowOptions']["Enabled"] is False
-                assert latest['DomainStatus']['OffPeakWindowOptions']["OffPeakWindow"]["WindowStartTime"]["Hours"] == 22
-                assert latest['DomainStatus']['OffPeakWindowOptions']["OffPeakWindow"]["WindowStartTime"]["Minutes"] == 30
-                break
+        assert latest['DomainStatus']['AutoTuneOptions']['UseOffPeakWindow'] is False
+        assert latest['DomainStatus']['ClusterConfig']['MultiAZWithStandbyEnabled'] is False
+        assert latest['DomainStatus']['OffPeakWindowOptions']["Enabled"] is False
+        assert latest['DomainStatus']['OffPeakWindowOptions']["OffPeakWindow"]["WindowStartTime"]["Hours"] == 22
+        assert latest['DomainStatus']['OffPeakWindowOptions']["OffPeakWindow"]["WindowStartTime"]["Minutes"] == 30
 
     def test_create_delete_es_2d3m_multi_az_vpc_2_subnet7_9(self, es_2d3m_multi_az_vpc_2_subnet7_9_domain):
         ref, resource = es_2d3m_multi_az_vpc_2_subnet7_9_domain
