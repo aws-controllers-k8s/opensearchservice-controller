@@ -291,7 +291,6 @@ class TestDomain:
                     "MultiAZWithStandbyEnabled": False
                 },
                 "OffPeakWindowOptions": {
-                    "enabled": False,
                     "offPeakWindow": {
                         "windowStartTime": {
                             "hours": 22,
@@ -312,7 +311,6 @@ class TestDomain:
 
         assert latest['DomainStatus']['AutoTuneOptions']['UseOffPeakWindow'] is False
         assert latest['DomainStatus']['ClusterConfig']['MultiAZWithStandbyEnabled'] is False
-        assert latest['DomainStatus']['OffPeakWindowOptions']["Enabled"] is False
         assert latest['DomainStatus']['OffPeakWindowOptions']["OffPeakWindow"]["WindowStartTime"]["Hours"] == 22
         assert latest['DomainStatus']['OffPeakWindowOptions']["OffPeakWindow"]["WindowStartTime"]["Minutes"] == 30
 
