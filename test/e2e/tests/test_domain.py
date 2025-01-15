@@ -305,7 +305,8 @@ class TestDomain:
             },
         }
         k8s.patch_custom_resource(ref, updates)
-        k8s.wait_on_condition(ref, condition.CONDITION_TYPE_RESOURCE_SYNCED)
+        time.sleep(CHECK_STATUS_WAIT_SECONDS)
+        assert k8s.wait_on_condition(ref, condition.CONDITION_TYPE_RESOURCE_SYNCED, "True", wait_periods=20)
         latest = domain.get(resource.name)
         print("latest:", latest)
 
