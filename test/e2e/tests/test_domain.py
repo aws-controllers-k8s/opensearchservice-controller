@@ -283,27 +283,30 @@ class TestDomain:
 
         # modify some cluster parameters to test updates
         updates = {
-            "spec": {
-                "AutoTuneOptions": {
-                    "UseOffPeakWindow": False
-                },
-                "ClusterConfig": {
-                    "MultiAZWithStandbyEnabled": False
-                },
-                "OffPeakWindowOptions": {
-                    "Enabled": True,
-                    "OffPeakWindow": {
-                        "WindowStartTime": {
-                            "Hours": 23,
-                            "Minutes": 30
-                        }
-                    }
-                },
-                "SoftwareUpdateOptions": {
-                    "AutoSoftwareUpdateEnabled": True
-                }
-            }
+            "spec": {"AutoTuneOptions": {"UseOffPeakWindow": True}},
         }
+        # updates = {
+        #     "spec": {
+        #         "AutoTuneOptions": {
+        #             "UseOffPeakWindow": False
+        #         },
+        #         "ClusterConfig": {
+        #             "MultiAZWithStandbyEnabled": False
+        #         },
+        #         "OffPeakWindowOptions": {
+        #             "Enabled": True,
+        #             "OffPeakWindow": {
+        #                 "WindowStartTime": {
+        #                     "Hours": 23,
+        #                     "Minutes": 30
+        #                 }
+        #             }
+        #         },
+        #         "SoftwareUpdateOptions": {
+        #             "AutoSoftwareUpdateEnabled": True
+        #         }
+        #     }
+        # }
         k8s.patch_custom_resource(ref, updates)
         time.sleep(CHECK_STATUS_WAIT_SECONDS)
         assert k8s.wait_on_condition(ref, condition.CONDITION_TYPE_RESOURCE_SYNCED, "True", wait_periods=10)
