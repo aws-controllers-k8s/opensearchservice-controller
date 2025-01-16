@@ -283,7 +283,7 @@ class TestDomain:
 
         # modify some cluster parameters to test updates
         updates = {
-            "spec": {"AutoTuneOptions": {"UseOffPeakWindow": True}},
+            "spec": {"autoTuneOptions": {"useOffPeakWindow": True}},
         }
         # updates = {
         #     "spec": {
