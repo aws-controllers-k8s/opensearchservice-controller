@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
 
@@ -28,8 +29,9 @@ import (
 	ackerr "github.com/aws-controllers-k8s/runtime/pkg/errors"
 	ackrequeue "github.com/aws-controllers-k8s/runtime/pkg/requeue"
 	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
-	"github.com/aws/aws-sdk-go/aws"
-	svcsdk "github.com/aws/aws-sdk-go/service/opensearchservice"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	svcsdk "github.com/aws/aws-sdk-go-v2/service/opensearch"
+	svcsdktypes "github.com/aws/aws-sdk-go-v2/service/opensearch/types"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -40,8 +42,7 @@ import (
 var (
 	_ = &metav1.Time{}
 	_ = strings.ToLower("")
-	_ = &aws.JSONValue{}
-	_ = &svcsdk.OpenSearchService{}
+	_ = &svcsdk.Client{}
 	_ = &svcapitypes.Domain{}
 	_ = ackv1alpha1.AWSAccountID("")
 	_ = &ackerr.NotFound
@@ -49,6 +50,7 @@ var (
 	_ = &reflect.Value{}
 	_ = fmt.Sprintf("")
 	_ = &ackrequeue.NoRequeue{}
+	_ = &aws.Config{}
 )
 
 // sdkFind returns SDK-specific information about a supplied resource
@@ -74,13 +76,11 @@ func (rm *resourceManager) sdkFind(
 	}
 
 	var resp *svcsdk.DescribeDomainOutput
-	resp, err = rm.sdkapi.DescribeDomainWithContext(ctx, input)
+	resp, err = rm.sdkapi.DescribeDomain(ctx, input)
 	rm.metrics.RecordAPICall("READ_ONE", "DescribeDomain", err)
 	if err != nil {
-		if reqErr, ok := ackerr.AWSRequestFailure(err); ok && reqErr.StatusCode() == 404 {
-			return nil, ackerr.NotFound
-		}
-		if awsErr, ok := ackerr.AWSError(err); ok && awsErr.Code() == "ResourceNotFoundException" {
+		var notFound *svcsdktypes.ResourceNotFoundException
+		if errors.As(err, &notFound) {
 			return nil, ackerr.NotFound
 		}
 		return nil, err
@@ -94,8 +94,8 @@ func (rm *resourceManager) sdkFind(
 		f0 := &svcapitypes.AIMLOptionsInput{}
 		if resp.DomainStatus.AIMLOptions.NaturalLanguageQueryGenerationOptions != nil {
 			f0f0 := &svcapitypes.NATuralLanguageQueryGenerationOptionsInput{}
-			if resp.DomainStatus.AIMLOptions.NaturalLanguageQueryGenerationOptions.DesiredState != nil {
-				f0f0.DesiredState = resp.DomainStatus.AIMLOptions.NaturalLanguageQueryGenerationOptions.DesiredState
+			if resp.DomainStatus.AIMLOptions.NaturalLanguageQueryGenerationOptions.DesiredState != "" {
+				f0f0.DesiredState = aws.String(string(resp.DomainStatus.AIMLOptions.NaturalLanguageQueryGenerationOptions.DesiredState))
 			}
 			f0.NATuralLanguageQueryGenerationOptions = f0f0
 		}
@@ -116,13 +116,7 @@ func (rm *resourceManager) sdkFind(
 		ko.Spec.AccessPolicies = nil
 	}
 	if resp.DomainStatus.AdvancedOptions != nil {
-		f3 := map[string]*string{}
-		for f3key, f3valiter := range resp.DomainStatus.AdvancedOptions {
-			var f3val string
-			f3val = *f3valiter
-			f3[f3key] = &f3val
-		}
-		ko.Spec.AdvancedOptions = f3
+		ko.Spec.AdvancedOptions = aws.StringMap(resp.DomainStatus.AdvancedOptions)
 	} else {
 		ko.Spec.AdvancedOptions = nil
 	}
@@ -172,7 +166,8 @@ func (rm *resourceManager) sdkFind(
 				f4f5.RolesKey = resp.DomainStatus.AdvancedSecurityOptions.SAMLOptions.RolesKey
 			}
 			if resp.DomainStatus.AdvancedSecurityOptions.SAMLOptions.SessionTimeoutMinutes != nil {
-				f4f5.SessionTimeoutMinutes = resp.DomainStatus.AdvancedSecurityOptions.SAMLOptions.SessionTimeoutMinutes
+				sessionTimeoutMinutesCopy := int64(*resp.DomainStatus.AdvancedSecurityOptions.SAMLOptions.SessionTimeoutMinutes)
+				f4f5.SessionTimeoutMinutes = &sessionTimeoutMinutesCopy
 			}
 			if resp.DomainStatus.AdvancedSecurityOptions.SAMLOptions.SubjectKey != nil {
 				f4f5.SubjectKey = resp.DomainStatus.AdvancedSecurityOptions.SAMLOptions.SubjectKey
@@ -197,11 +192,11 @@ func (rm *resourceManager) sdkFind(
 		if resp.DomainStatus.ChangeProgressDetails.ChangeId != nil {
 			f6.ChangeID = resp.DomainStatus.ChangeProgressDetails.ChangeId
 		}
-		if resp.DomainStatus.ChangeProgressDetails.ConfigChangeStatus != nil {
-			f6.ConfigChangeStatus = resp.DomainStatus.ChangeProgressDetails.ConfigChangeStatus
+		if resp.DomainStatus.ChangeProgressDetails.ConfigChangeStatus != "" {
+			f6.ConfigChangeStatus = aws.String(string(resp.DomainStatus.ChangeProgressDetails.ConfigChangeStatus))
 		}
-		if resp.DomainStatus.ChangeProgressDetails.InitiatedBy != nil {
-			f6.InitiatedBy = resp.DomainStatus.ChangeProgressDetails.InitiatedBy
+		if resp.DomainStatus.ChangeProgressDetails.InitiatedBy != "" {
+			f6.InitiatedBy = aws.String(string(resp.DomainStatus.ChangeProgressDetails.InitiatedBy))
 		}
 		if resp.DomainStatus.ChangeProgressDetails.LastUpdatedTime != nil {
 			f6.LastUpdatedTime = &metav1.Time{*resp.DomainStatus.ChangeProgressDetails.LastUpdatedTime}
@@ -226,38 +221,67 @@ func (rm *resourceManager) sdkFind(
 			f7.ColdStorageOptions = f7f0
 		}
 		if resp.DomainStatus.ClusterConfig.DedicatedMasterCount != nil {
-			f7.DedicatedMasterCount = resp.DomainStatus.ClusterConfig.DedicatedMasterCount
+			dedicatedMasterCountCopy := int64(*resp.DomainStatus.ClusterConfig.DedicatedMasterCount)
+			f7.DedicatedMasterCount = &dedicatedMasterCountCopy
 		}
 		if resp.DomainStatus.ClusterConfig.DedicatedMasterEnabled != nil {
 			f7.DedicatedMasterEnabled = resp.DomainStatus.ClusterConfig.DedicatedMasterEnabled
 		}
-		if resp.DomainStatus.ClusterConfig.DedicatedMasterType != nil {
-			f7.DedicatedMasterType = resp.DomainStatus.ClusterConfig.DedicatedMasterType
+		if resp.DomainStatus.ClusterConfig.DedicatedMasterType != "" {
+			f7.DedicatedMasterType = aws.String(string(resp.DomainStatus.ClusterConfig.DedicatedMasterType))
 		}
 		if resp.DomainStatus.ClusterConfig.InstanceCount != nil {
-			f7.InstanceCount = resp.DomainStatus.ClusterConfig.InstanceCount
+			instanceCountCopy := int64(*resp.DomainStatus.ClusterConfig.InstanceCount)
+			f7.InstanceCount = &instanceCountCopy
 		}
-		if resp.DomainStatus.ClusterConfig.InstanceType != nil {
-			f7.InstanceType = resp.DomainStatus.ClusterConfig.InstanceType
+		if resp.DomainStatus.ClusterConfig.InstanceType != "" {
+			f7.InstanceType = aws.String(string(resp.DomainStatus.ClusterConfig.InstanceType))
 		}
 		if resp.DomainStatus.ClusterConfig.MultiAZWithStandbyEnabled != nil {
 			f7.MultiAZWithStandbyEnabled = resp.DomainStatus.ClusterConfig.MultiAZWithStandbyEnabled
 		}
+		if resp.DomainStatus.ClusterConfig.NodeOptions != nil {
+			f7f7 := []*svcapitypes.NodeOption{}
+			for _, f7f7iter := range resp.DomainStatus.ClusterConfig.NodeOptions {
+				f7f7elem := &svcapitypes.NodeOption{}
+				if f7f7iter.NodeConfig != nil {
+					f7f7elemf0 := &svcapitypes.NodeConfig{}
+					if f7f7iter.NodeConfig.Count != nil {
+						countCopy := int64(*f7f7iter.NodeConfig.Count)
+						f7f7elemf0.Count = &countCopy
+					}
+					if f7f7iter.NodeConfig.Enabled != nil {
+						f7f7elemf0.Enabled = f7f7iter.NodeConfig.Enabled
+					}
+					if f7f7iter.NodeConfig.Type != "" {
+						f7f7elemf0.Type = aws.String(string(f7f7iter.NodeConfig.Type))
+					}
+					f7f7elem.NodeConfig = f7f7elemf0
+				}
+				if f7f7iter.NodeType != "" {
+					f7f7elem.NodeType = aws.String(string(f7f7iter.NodeType))
+				}
+				f7f7 = append(f7f7, f7f7elem)
+			}
+			f7.NodeOptions = f7f7
+		}
 		if resp.DomainStatus.ClusterConfig.WarmCount != nil {
-			f7.WarmCount = resp.DomainStatus.ClusterConfig.WarmCount
+			warmCountCopy := int64(*resp.DomainStatus.ClusterConfig.WarmCount)
+			f7.WarmCount = &warmCountCopy
 		}
 		if resp.DomainStatus.ClusterConfig.WarmEnabled != nil {
 			f7.WarmEnabled = resp.DomainStatus.ClusterConfig.WarmEnabled
 		}
-		if resp.DomainStatus.ClusterConfig.WarmType != nil {
-			f7.WarmType = resp.DomainStatus.ClusterConfig.WarmType
+		if resp.DomainStatus.ClusterConfig.WarmType != "" {
+			f7.WarmType = aws.String(string(resp.DomainStatus.ClusterConfig.WarmType))
 		}
 		if resp.DomainStatus.ClusterConfig.ZoneAwarenessConfig != nil {
-			f7f10 := &svcapitypes.ZoneAwarenessConfig{}
+			f7f11 := &svcapitypes.ZoneAwarenessConfig{}
 			if resp.DomainStatus.ClusterConfig.ZoneAwarenessConfig.AvailabilityZoneCount != nil {
-				f7f10.AvailabilityZoneCount = resp.DomainStatus.ClusterConfig.ZoneAwarenessConfig.AvailabilityZoneCount
+				availabilityZoneCountCopy := int64(*resp.DomainStatus.ClusterConfig.ZoneAwarenessConfig.AvailabilityZoneCount)
+				f7f11.AvailabilityZoneCount = &availabilityZoneCountCopy
 			}
-			f7.ZoneAwarenessConfig = f7f10
+			f7.ZoneAwarenessConfig = f7f11
 		}
 		if resp.DomainStatus.ClusterConfig.ZoneAwarenessEnabled != nil {
 			f7.ZoneAwarenessEnabled = resp.DomainStatus.ClusterConfig.ZoneAwarenessEnabled
@@ -308,8 +332,8 @@ func (rm *resourceManager) sdkFind(
 		if resp.DomainStatus.DomainEndpointOptions.EnforceHTTPS != nil {
 			f11.EnforceHTTPS = resp.DomainStatus.DomainEndpointOptions.EnforceHTTPS
 		}
-		if resp.DomainStatus.DomainEndpointOptions.TLSSecurityPolicy != nil {
-			f11.TLSSecurityPolicy = resp.DomainStatus.DomainEndpointOptions.TLSSecurityPolicy
+		if resp.DomainStatus.DomainEndpointOptions.TLSSecurityPolicy != "" {
+			f11.TLSSecurityPolicy = aws.String(string(resp.DomainStatus.DomainEndpointOptions.TLSSecurityPolicy))
 		}
 		ko.Spec.DomainEndpointOptions = f11
 	} else {
@@ -330,8 +354,8 @@ func (rm *resourceManager) sdkFind(
 	} else {
 		ko.Spec.Name = nil
 	}
-	if resp.DomainStatus.DomainProcessingStatus != nil {
-		ko.Status.DomainProcessingStatus = resp.DomainStatus.DomainProcessingStatus
+	if resp.DomainStatus.DomainProcessingStatus != "" {
+		ko.Status.DomainProcessingStatus = aws.String(string(resp.DomainStatus.DomainProcessingStatus))
 	} else {
 		ko.Status.DomainProcessingStatus = nil
 	}
@@ -341,16 +365,19 @@ func (rm *resourceManager) sdkFind(
 			f16.EBSEnabled = resp.DomainStatus.EBSOptions.EBSEnabled
 		}
 		if resp.DomainStatus.EBSOptions.Iops != nil {
-			f16.IOPS = resp.DomainStatus.EBSOptions.Iops
+			iopsCopy := int64(*resp.DomainStatus.EBSOptions.Iops)
+			f16.IOPS = &iopsCopy
 		}
 		if resp.DomainStatus.EBSOptions.Throughput != nil {
-			f16.Throughput = resp.DomainStatus.EBSOptions.Throughput
+			throughputCopy := int64(*resp.DomainStatus.EBSOptions.Throughput)
+			f16.Throughput = &throughputCopy
 		}
 		if resp.DomainStatus.EBSOptions.VolumeSize != nil {
-			f16.VolumeSize = resp.DomainStatus.EBSOptions.VolumeSize
+			volumeSizeCopy := int64(*resp.DomainStatus.EBSOptions.VolumeSize)
+			f16.VolumeSize = &volumeSizeCopy
 		}
-		if resp.DomainStatus.EBSOptions.VolumeType != nil {
-			f16.VolumeType = resp.DomainStatus.EBSOptions.VolumeType
+		if resp.DomainStatus.EBSOptions.VolumeType != "" {
+			f16.VolumeType = aws.String(string(resp.DomainStatus.EBSOptions.VolumeType))
 		}
 		ko.Spec.EBSOptions = f16
 	} else {
@@ -379,13 +406,7 @@ func (rm *resourceManager) sdkFind(
 		ko.Status.EndpointV2 = nil
 	}
 	if resp.DomainStatus.Endpoints != nil {
-		f20 := map[string]*string{}
-		for f20key, f20valiter := range resp.DomainStatus.Endpoints {
-			var f20val string
-			f20val = *f20valiter
-			f20[f20key] = &f20val
-		}
-		ko.Status.Endpoints = f20
+		ko.Status.Endpoints = aws.StringMap(resp.DomainStatus.Endpoints)
 	} else {
 		ko.Status.Endpoints = nil
 	}
@@ -394,78 +415,92 @@ func (rm *resourceManager) sdkFind(
 	} else {
 		ko.Spec.EngineVersion = nil
 	}
-	if resp.DomainStatus.IPAddressType != nil {
-		ko.Spec.IPAddressType = resp.DomainStatus.IPAddressType
+	if resp.DomainStatus.IPAddressType != "" {
+		ko.Spec.IPAddressType = aws.String(string(resp.DomainStatus.IPAddressType))
 	} else {
 		ko.Spec.IPAddressType = nil
 	}
-	if resp.DomainStatus.LogPublishingOptions != nil {
-		f23 := map[string]*svcapitypes.LogPublishingOption{}
-		for f23key, f23valiter := range resp.DomainStatus.LogPublishingOptions {
-			f23val := &svcapitypes.LogPublishingOption{}
-			if f23valiter.CloudWatchLogsLogGroupArn != nil {
-				f23val.CloudWatchLogsLogGroupARN = f23valiter.CloudWatchLogsLogGroupArn
-			}
-			if f23valiter.Enabled != nil {
-				f23val.Enabled = f23valiter.Enabled
-			}
-			f23[f23key] = f23val
+	if resp.DomainStatus.IdentityCenterOptions != nil {
+		f23 := &svcapitypes.IdentityCenterOptionsInput{}
+		if resp.DomainStatus.IdentityCenterOptions.EnabledAPIAccess != nil {
+			f23.EnabledAPIAccess = resp.DomainStatus.IdentityCenterOptions.EnabledAPIAccess
 		}
-		ko.Spec.LogPublishingOptions = f23
+		if resp.DomainStatus.IdentityCenterOptions.IdentityCenterInstanceARN != nil {
+			f23.IdentityCenterInstanceARN = resp.DomainStatus.IdentityCenterOptions.IdentityCenterInstanceARN
+		}
+		if resp.DomainStatus.IdentityCenterOptions.RolesKey != "" {
+			f23.RolesKey = aws.String(string(resp.DomainStatus.IdentityCenterOptions.RolesKey))
+		}
+		if resp.DomainStatus.IdentityCenterOptions.SubjectKey != "" {
+			f23.SubjectKey = aws.String(string(resp.DomainStatus.IdentityCenterOptions.SubjectKey))
+		}
+		ko.Spec.IdentityCenterOptions = f23
+	} else {
+		ko.Spec.IdentityCenterOptions = nil
+	}
+	if resp.DomainStatus.LogPublishingOptions != nil {
+		f24 := map[string]*svcapitypes.LogPublishingOption{}
+		for f24key, f24valiter := range resp.DomainStatus.LogPublishingOptions {
+			f24val := &svcapitypes.LogPublishingOption{}
+			if f24valiter.CloudWatchLogsLogGroupArn != nil {
+				f24val.CloudWatchLogsLogGroupARN = f24valiter.CloudWatchLogsLogGroupArn
+			}
+			if f24valiter.Enabled != nil {
+				f24val.Enabled = f24valiter.Enabled
+			}
+			f24[f24key] = f24val
+		}
+		ko.Spec.LogPublishingOptions = f24
 	} else {
 		ko.Spec.LogPublishingOptions = nil
 	}
 	if resp.DomainStatus.ModifyingProperties != nil {
-		f24 := []*svcapitypes.ModifyingProperties{}
-		for _, f24iter := range resp.DomainStatus.ModifyingProperties {
-			f24elem := &svcapitypes.ModifyingProperties{}
-			if f24iter.ActiveValue != nil {
-				f24elem.ActiveValue = f24iter.ActiveValue
+		f25 := []*svcapitypes.ModifyingProperties{}
+		for _, f25iter := range resp.DomainStatus.ModifyingProperties {
+			f25elem := &svcapitypes.ModifyingProperties{}
+			if f25iter.ActiveValue != nil {
+				f25elem.ActiveValue = f25iter.ActiveValue
 			}
-			if f24iter.Name != nil {
-				f24elem.Name = f24iter.Name
+			if f25iter.Name != nil {
+				f25elem.Name = f25iter.Name
 			}
-			if f24iter.PendingValue != nil {
-				f24elem.PendingValue = f24iter.PendingValue
+			if f25iter.PendingValue != nil {
+				f25elem.PendingValue = f25iter.PendingValue
 			}
-			if f24iter.ValueType != nil {
-				f24elem.ValueType = f24iter.ValueType
+			if f25iter.ValueType != "" {
+				f25elem.ValueType = aws.String(string(f25iter.ValueType))
 			}
-			f24 = append(f24, f24elem)
+			f25 = append(f25, f25elem)
 		}
-		ko.Status.ModifyingProperties = f24
+		ko.Status.ModifyingProperties = f25
 	} else {
 		ko.Status.ModifyingProperties = nil
 	}
 	if resp.DomainStatus.NodeToNodeEncryptionOptions != nil {
-		f25 := &svcapitypes.NodeToNodeEncryptionOptions{}
+		f26 := &svcapitypes.NodeToNodeEncryptionOptions{}
 		if resp.DomainStatus.NodeToNodeEncryptionOptions.Enabled != nil {
-			f25.Enabled = resp.DomainStatus.NodeToNodeEncryptionOptions.Enabled
+			f26.Enabled = resp.DomainStatus.NodeToNodeEncryptionOptions.Enabled
 		}
-		ko.Spec.NodeToNodeEncryptionOptions = f25
+		ko.Spec.NodeToNodeEncryptionOptions = f26
 	} else {
 		ko.Spec.NodeToNodeEncryptionOptions = nil
 	}
 	if resp.DomainStatus.OffPeakWindowOptions != nil {
-		f26 := &svcapitypes.OffPeakWindowOptions{}
+		f27 := &svcapitypes.OffPeakWindowOptions{}
 		if resp.DomainStatus.OffPeakWindowOptions.Enabled != nil {
-			f26.Enabled = resp.DomainStatus.OffPeakWindowOptions.Enabled
+			f27.Enabled = resp.DomainStatus.OffPeakWindowOptions.Enabled
 		}
 		if resp.DomainStatus.OffPeakWindowOptions.OffPeakWindow != nil {
-			f26f1 := &svcapitypes.OffPeakWindow{}
+			f27f1 := &svcapitypes.OffPeakWindow{}
 			if resp.DomainStatus.OffPeakWindowOptions.OffPeakWindow.WindowStartTime != nil {
-				f26f1f0 := &svcapitypes.WindowStartTime{}
-				if resp.DomainStatus.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Hours != nil {
-					f26f1f0.Hours = resp.DomainStatus.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Hours
-				}
-				if resp.DomainStatus.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Minutes != nil {
-					f26f1f0.Minutes = resp.DomainStatus.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Minutes
-				}
-				f26f1.WindowStartTime = f26f1f0
+				f27f1f0 := &svcapitypes.WindowStartTime{}
+				f27f1f0.Hours = &resp.DomainStatus.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Hours
+				f27f1f0.Minutes = &resp.DomainStatus.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Minutes
+				f27f1.WindowStartTime = f27f1f0
 			}
-			f26.OffPeakWindow = f26f1
+			f27.OffPeakWindow = f27f1
 		}
-		ko.Spec.OffPeakWindowOptions = f26
+		ko.Spec.OffPeakWindowOptions = f27
 	} else {
 		ko.Spec.OffPeakWindowOptions = nil
 	}
@@ -475,50 +510,51 @@ func (rm *resourceManager) sdkFind(
 		ko.Status.Processing = nil
 	}
 	if resp.DomainStatus.ServiceSoftwareOptions != nil {
-		f28 := &svcapitypes.ServiceSoftwareOptions{}
+		f29 := &svcapitypes.ServiceSoftwareOptions{}
 		if resp.DomainStatus.ServiceSoftwareOptions.AutomatedUpdateDate != nil {
-			f28.AutomatedUpdateDate = &metav1.Time{*resp.DomainStatus.ServiceSoftwareOptions.AutomatedUpdateDate}
+			f29.AutomatedUpdateDate = &metav1.Time{*resp.DomainStatus.ServiceSoftwareOptions.AutomatedUpdateDate}
 		}
 		if resp.DomainStatus.ServiceSoftwareOptions.Cancellable != nil {
-			f28.Cancellable = resp.DomainStatus.ServiceSoftwareOptions.Cancellable
+			f29.Cancellable = resp.DomainStatus.ServiceSoftwareOptions.Cancellable
 		}
 		if resp.DomainStatus.ServiceSoftwareOptions.CurrentVersion != nil {
-			f28.CurrentVersion = resp.DomainStatus.ServiceSoftwareOptions.CurrentVersion
+			f29.CurrentVersion = resp.DomainStatus.ServiceSoftwareOptions.CurrentVersion
 		}
 		if resp.DomainStatus.ServiceSoftwareOptions.Description != nil {
-			f28.Description = resp.DomainStatus.ServiceSoftwareOptions.Description
+			f29.Description = resp.DomainStatus.ServiceSoftwareOptions.Description
 		}
 		if resp.DomainStatus.ServiceSoftwareOptions.NewVersion != nil {
-			f28.NewVersion = resp.DomainStatus.ServiceSoftwareOptions.NewVersion
+			f29.NewVersion = resp.DomainStatus.ServiceSoftwareOptions.NewVersion
 		}
 		if resp.DomainStatus.ServiceSoftwareOptions.OptionalDeployment != nil {
-			f28.OptionalDeployment = resp.DomainStatus.ServiceSoftwareOptions.OptionalDeployment
+			f29.OptionalDeployment = resp.DomainStatus.ServiceSoftwareOptions.OptionalDeployment
 		}
 		if resp.DomainStatus.ServiceSoftwareOptions.UpdateAvailable != nil {
-			f28.UpdateAvailable = resp.DomainStatus.ServiceSoftwareOptions.UpdateAvailable
+			f29.UpdateAvailable = resp.DomainStatus.ServiceSoftwareOptions.UpdateAvailable
 		}
-		if resp.DomainStatus.ServiceSoftwareOptions.UpdateStatus != nil {
-			f28.UpdateStatus = resp.DomainStatus.ServiceSoftwareOptions.UpdateStatus
+		if resp.DomainStatus.ServiceSoftwareOptions.UpdateStatus != "" {
+			f29.UpdateStatus = aws.String(string(resp.DomainStatus.ServiceSoftwareOptions.UpdateStatus))
 		}
-		ko.Status.ServiceSoftwareOptions = f28
+		ko.Status.ServiceSoftwareOptions = f29
 	} else {
 		ko.Status.ServiceSoftwareOptions = nil
 	}
 	if resp.DomainStatus.SnapshotOptions != nil {
-		f29 := &svcapitypes.SnapshotOptions{}
+		f30 := &svcapitypes.SnapshotOptions{}
 		if resp.DomainStatus.SnapshotOptions.AutomatedSnapshotStartHour != nil {
-			f29.AutomatedSnapshotStartHour = resp.DomainStatus.SnapshotOptions.AutomatedSnapshotStartHour
+			automatedSnapshotStartHourCopy := int64(*resp.DomainStatus.SnapshotOptions.AutomatedSnapshotStartHour)
+			f30.AutomatedSnapshotStartHour = &automatedSnapshotStartHourCopy
 		}
-		ko.Status.SnapshotOptions = f29
+		ko.Status.SnapshotOptions = f30
 	} else {
 		ko.Status.SnapshotOptions = nil
 	}
 	if resp.DomainStatus.SoftwareUpdateOptions != nil {
-		f30 := &svcapitypes.SoftwareUpdateOptions{}
+		f31 := &svcapitypes.SoftwareUpdateOptions{}
 		if resp.DomainStatus.SoftwareUpdateOptions.AutoSoftwareUpdateEnabled != nil {
-			f30.AutoSoftwareUpdateEnabled = resp.DomainStatus.SoftwareUpdateOptions.AutoSoftwareUpdateEnabled
+			f31.AutoSoftwareUpdateEnabled = resp.DomainStatus.SoftwareUpdateOptions.AutoSoftwareUpdateEnabled
 		}
-		ko.Spec.SoftwareUpdateOptions = f30
+		ko.Spec.SoftwareUpdateOptions = f31
 	} else {
 		ko.Spec.SoftwareUpdateOptions = nil
 	}
@@ -528,26 +564,14 @@ func (rm *resourceManager) sdkFind(
 		ko.Status.UpgradeProcessing = nil
 	}
 	if resp.DomainStatus.VPCOptions != nil {
-		f32 := &svcapitypes.VPCOptions{}
+		f33 := &svcapitypes.VPCOptions{}
 		if resp.DomainStatus.VPCOptions.SecurityGroupIds != nil {
-			f32f1 := []*string{}
-			for _, f32f1iter := range resp.DomainStatus.VPCOptions.SecurityGroupIds {
-				var f32f1elem string
-				f32f1elem = *f32f1iter
-				f32f1 = append(f32f1, &f32f1elem)
-			}
-			f32.SecurityGroupIDs = f32f1
+			f33.SecurityGroupIDs = aws.StringSlice(resp.DomainStatus.VPCOptions.SecurityGroupIds)
 		}
 		if resp.DomainStatus.VPCOptions.SubnetIds != nil {
-			f32f2 := []*string{}
-			for _, f32f2iter := range resp.DomainStatus.VPCOptions.SubnetIds {
-				var f32f2elem string
-				f32f2elem = *f32f2iter
-				f32f2 = append(f32f2, &f32f2elem)
-			}
-			f32.SubnetIDs = f32f2
+			f33.SubnetIDs = aws.StringSlice(resp.DomainStatus.VPCOptions.SubnetIds)
 		}
-		ko.Spec.VPCOptions = f32
+		ko.Spec.VPCOptions = f33
 	} else {
 		ko.Spec.VPCOptions = nil
 	}
@@ -582,7 +606,7 @@ func (rm *resourceManager) newDescribeRequestPayload(
 	res := &svcsdk.DescribeDomainInput{}
 
 	if r.ko.Spec.Name != nil {
-		res.SetDomainName(*r.ko.Spec.Name)
+		res.DomainName = r.ko.Spec.Name
 	}
 
 	return res, nil
@@ -607,7 +631,7 @@ func (rm *resourceManager) sdkCreate(
 
 	var resp *svcsdk.CreateDomainOutput
 	_ = resp
-	resp, err = rm.sdkapi.CreateDomainWithContext(ctx, input)
+	resp, err = rm.sdkapi.CreateDomain(ctx, input)
 	rm.metrics.RecordAPICall("CREATE", "CreateDomain", err)
 	if err != nil {
 		return nil, err
@@ -620,8 +644,8 @@ func (rm *resourceManager) sdkCreate(
 		f0 := &svcapitypes.AIMLOptionsInput{}
 		if resp.DomainStatus.AIMLOptions.NaturalLanguageQueryGenerationOptions != nil {
 			f0f0 := &svcapitypes.NATuralLanguageQueryGenerationOptionsInput{}
-			if resp.DomainStatus.AIMLOptions.NaturalLanguageQueryGenerationOptions.DesiredState != nil {
-				f0f0.DesiredState = resp.DomainStatus.AIMLOptions.NaturalLanguageQueryGenerationOptions.DesiredState
+			if resp.DomainStatus.AIMLOptions.NaturalLanguageQueryGenerationOptions.DesiredState != "" {
+				f0f0.DesiredState = aws.String(string(resp.DomainStatus.AIMLOptions.NaturalLanguageQueryGenerationOptions.DesiredState))
 			}
 			f0.NATuralLanguageQueryGenerationOptions = f0f0
 		}
@@ -642,13 +666,7 @@ func (rm *resourceManager) sdkCreate(
 		ko.Spec.AccessPolicies = nil
 	}
 	if resp.DomainStatus.AdvancedOptions != nil {
-		f3 := map[string]*string{}
-		for f3key, f3valiter := range resp.DomainStatus.AdvancedOptions {
-			var f3val string
-			f3val = *f3valiter
-			f3[f3key] = &f3val
-		}
-		ko.Spec.AdvancedOptions = f3
+		ko.Spec.AdvancedOptions = aws.StringMap(resp.DomainStatus.AdvancedOptions)
 	} else {
 		ko.Spec.AdvancedOptions = nil
 	}
@@ -698,7 +716,8 @@ func (rm *resourceManager) sdkCreate(
 				f4f5.RolesKey = resp.DomainStatus.AdvancedSecurityOptions.SAMLOptions.RolesKey
 			}
 			if resp.DomainStatus.AdvancedSecurityOptions.SAMLOptions.SessionTimeoutMinutes != nil {
-				f4f5.SessionTimeoutMinutes = resp.DomainStatus.AdvancedSecurityOptions.SAMLOptions.SessionTimeoutMinutes
+				sessionTimeoutMinutesCopy := int64(*resp.DomainStatus.AdvancedSecurityOptions.SAMLOptions.SessionTimeoutMinutes)
+				f4f5.SessionTimeoutMinutes = &sessionTimeoutMinutesCopy
 			}
 			if resp.DomainStatus.AdvancedSecurityOptions.SAMLOptions.SubjectKey != nil {
 				f4f5.SubjectKey = resp.DomainStatus.AdvancedSecurityOptions.SAMLOptions.SubjectKey
@@ -723,11 +742,11 @@ func (rm *resourceManager) sdkCreate(
 		if resp.DomainStatus.ChangeProgressDetails.ChangeId != nil {
 			f6.ChangeID = resp.DomainStatus.ChangeProgressDetails.ChangeId
 		}
-		if resp.DomainStatus.ChangeProgressDetails.ConfigChangeStatus != nil {
-			f6.ConfigChangeStatus = resp.DomainStatus.ChangeProgressDetails.ConfigChangeStatus
+		if resp.DomainStatus.ChangeProgressDetails.ConfigChangeStatus != "" {
+			f6.ConfigChangeStatus = aws.String(string(resp.DomainStatus.ChangeProgressDetails.ConfigChangeStatus))
 		}
-		if resp.DomainStatus.ChangeProgressDetails.InitiatedBy != nil {
-			f6.InitiatedBy = resp.DomainStatus.ChangeProgressDetails.InitiatedBy
+		if resp.DomainStatus.ChangeProgressDetails.InitiatedBy != "" {
+			f6.InitiatedBy = aws.String(string(resp.DomainStatus.ChangeProgressDetails.InitiatedBy))
 		}
 		if resp.DomainStatus.ChangeProgressDetails.LastUpdatedTime != nil {
 			f6.LastUpdatedTime = &metav1.Time{*resp.DomainStatus.ChangeProgressDetails.LastUpdatedTime}
@@ -752,38 +771,67 @@ func (rm *resourceManager) sdkCreate(
 			f7.ColdStorageOptions = f7f0
 		}
 		if resp.DomainStatus.ClusterConfig.DedicatedMasterCount != nil {
-			f7.DedicatedMasterCount = resp.DomainStatus.ClusterConfig.DedicatedMasterCount
+			dedicatedMasterCountCopy := int64(*resp.DomainStatus.ClusterConfig.DedicatedMasterCount)
+			f7.DedicatedMasterCount = &dedicatedMasterCountCopy
 		}
 		if resp.DomainStatus.ClusterConfig.DedicatedMasterEnabled != nil {
 			f7.DedicatedMasterEnabled = resp.DomainStatus.ClusterConfig.DedicatedMasterEnabled
 		}
-		if resp.DomainStatus.ClusterConfig.DedicatedMasterType != nil {
-			f7.DedicatedMasterType = resp.DomainStatus.ClusterConfig.DedicatedMasterType
+		if resp.DomainStatus.ClusterConfig.DedicatedMasterType != "" {
+			f7.DedicatedMasterType = aws.String(string(resp.DomainStatus.ClusterConfig.DedicatedMasterType))
 		}
 		if resp.DomainStatus.ClusterConfig.InstanceCount != nil {
-			f7.InstanceCount = resp.DomainStatus.ClusterConfig.InstanceCount
+			instanceCountCopy := int64(*resp.DomainStatus.ClusterConfig.InstanceCount)
+			f7.InstanceCount = &instanceCountCopy
 		}
-		if resp.DomainStatus.ClusterConfig.InstanceType != nil {
-			f7.InstanceType = resp.DomainStatus.ClusterConfig.InstanceType
+		if resp.DomainStatus.ClusterConfig.InstanceType != "" {
+			f7.InstanceType = aws.String(string(resp.DomainStatus.ClusterConfig.InstanceType))
 		}
 		if resp.DomainStatus.ClusterConfig.MultiAZWithStandbyEnabled != nil {
 			f7.MultiAZWithStandbyEnabled = resp.DomainStatus.ClusterConfig.MultiAZWithStandbyEnabled
 		}
+		if resp.DomainStatus.ClusterConfig.NodeOptions != nil {
+			f7f7 := []*svcapitypes.NodeOption{}
+			for _, f7f7iter := range resp.DomainStatus.ClusterConfig.NodeOptions {
+				f7f7elem := &svcapitypes.NodeOption{}
+				if f7f7iter.NodeConfig != nil {
+					f7f7elemf0 := &svcapitypes.NodeConfig{}
+					if f7f7iter.NodeConfig.Count != nil {
+						countCopy := int64(*f7f7iter.NodeConfig.Count)
+						f7f7elemf0.Count = &countCopy
+					}
+					if f7f7iter.NodeConfig.Enabled != nil {
+						f7f7elemf0.Enabled = f7f7iter.NodeConfig.Enabled
+					}
+					if f7f7iter.NodeConfig.Type != "" {
+						f7f7elemf0.Type = aws.String(string(f7f7iter.NodeConfig.Type))
+					}
+					f7f7elem.NodeConfig = f7f7elemf0
+				}
+				if f7f7iter.NodeType != "" {
+					f7f7elem.NodeType = aws.String(string(f7f7iter.NodeType))
+				}
+				f7f7 = append(f7f7, f7f7elem)
+			}
+			f7.NodeOptions = f7f7
+		}
 		if resp.DomainStatus.ClusterConfig.WarmCount != nil {
-			f7.WarmCount = resp.DomainStatus.ClusterConfig.WarmCount
+			warmCountCopy := int64(*resp.DomainStatus.ClusterConfig.WarmCount)
+			f7.WarmCount = &warmCountCopy
 		}
 		if resp.DomainStatus.ClusterConfig.WarmEnabled != nil {
 			f7.WarmEnabled = resp.DomainStatus.ClusterConfig.WarmEnabled
 		}
-		if resp.DomainStatus.ClusterConfig.WarmType != nil {
-			f7.WarmType = resp.DomainStatus.ClusterConfig.WarmType
+		if resp.DomainStatus.ClusterConfig.WarmType != "" {
+			f7.WarmType = aws.String(string(resp.DomainStatus.ClusterConfig.WarmType))
 		}
 		if resp.DomainStatus.ClusterConfig.ZoneAwarenessConfig != nil {
-			f7f10 := &svcapitypes.ZoneAwarenessConfig{}
+			f7f11 := &svcapitypes.ZoneAwarenessConfig{}
 			if resp.DomainStatus.ClusterConfig.ZoneAwarenessConfig.AvailabilityZoneCount != nil {
-				f7f10.AvailabilityZoneCount = resp.DomainStatus.ClusterConfig.ZoneAwarenessConfig.AvailabilityZoneCount
+				availabilityZoneCountCopy := int64(*resp.DomainStatus.ClusterConfig.ZoneAwarenessConfig.AvailabilityZoneCount)
+				f7f11.AvailabilityZoneCount = &availabilityZoneCountCopy
 			}
-			f7.ZoneAwarenessConfig = f7f10
+			f7.ZoneAwarenessConfig = f7f11
 		}
 		if resp.DomainStatus.ClusterConfig.ZoneAwarenessEnabled != nil {
 			f7.ZoneAwarenessEnabled = resp.DomainStatus.ClusterConfig.ZoneAwarenessEnabled
@@ -834,8 +882,8 @@ func (rm *resourceManager) sdkCreate(
 		if resp.DomainStatus.DomainEndpointOptions.EnforceHTTPS != nil {
 			f11.EnforceHTTPS = resp.DomainStatus.DomainEndpointOptions.EnforceHTTPS
 		}
-		if resp.DomainStatus.DomainEndpointOptions.TLSSecurityPolicy != nil {
-			f11.TLSSecurityPolicy = resp.DomainStatus.DomainEndpointOptions.TLSSecurityPolicy
+		if resp.DomainStatus.DomainEndpointOptions.TLSSecurityPolicy != "" {
+			f11.TLSSecurityPolicy = aws.String(string(resp.DomainStatus.DomainEndpointOptions.TLSSecurityPolicy))
 		}
 		ko.Spec.DomainEndpointOptions = f11
 	} else {
@@ -856,8 +904,8 @@ func (rm *resourceManager) sdkCreate(
 	} else {
 		ko.Spec.Name = nil
 	}
-	if resp.DomainStatus.DomainProcessingStatus != nil {
-		ko.Status.DomainProcessingStatus = resp.DomainStatus.DomainProcessingStatus
+	if resp.DomainStatus.DomainProcessingStatus != "" {
+		ko.Status.DomainProcessingStatus = aws.String(string(resp.DomainStatus.DomainProcessingStatus))
 	} else {
 		ko.Status.DomainProcessingStatus = nil
 	}
@@ -867,16 +915,19 @@ func (rm *resourceManager) sdkCreate(
 			f16.EBSEnabled = resp.DomainStatus.EBSOptions.EBSEnabled
 		}
 		if resp.DomainStatus.EBSOptions.Iops != nil {
-			f16.IOPS = resp.DomainStatus.EBSOptions.Iops
+			iopsCopy := int64(*resp.DomainStatus.EBSOptions.Iops)
+			f16.IOPS = &iopsCopy
 		}
 		if resp.DomainStatus.EBSOptions.Throughput != nil {
-			f16.Throughput = resp.DomainStatus.EBSOptions.Throughput
+			throughputCopy := int64(*resp.DomainStatus.EBSOptions.Throughput)
+			f16.Throughput = &throughputCopy
 		}
 		if resp.DomainStatus.EBSOptions.VolumeSize != nil {
-			f16.VolumeSize = resp.DomainStatus.EBSOptions.VolumeSize
+			volumeSizeCopy := int64(*resp.DomainStatus.EBSOptions.VolumeSize)
+			f16.VolumeSize = &volumeSizeCopy
 		}
-		if resp.DomainStatus.EBSOptions.VolumeType != nil {
-			f16.VolumeType = resp.DomainStatus.EBSOptions.VolumeType
+		if resp.DomainStatus.EBSOptions.VolumeType != "" {
+			f16.VolumeType = aws.String(string(resp.DomainStatus.EBSOptions.VolumeType))
 		}
 		ko.Spec.EBSOptions = f16
 	} else {
@@ -905,13 +956,7 @@ func (rm *resourceManager) sdkCreate(
 		ko.Status.EndpointV2 = nil
 	}
 	if resp.DomainStatus.Endpoints != nil {
-		f20 := map[string]*string{}
-		for f20key, f20valiter := range resp.DomainStatus.Endpoints {
-			var f20val string
-			f20val = *f20valiter
-			f20[f20key] = &f20val
-		}
-		ko.Status.Endpoints = f20
+		ko.Status.Endpoints = aws.StringMap(resp.DomainStatus.Endpoints)
 	} else {
 		ko.Status.Endpoints = nil
 	}
@@ -920,78 +965,92 @@ func (rm *resourceManager) sdkCreate(
 	} else {
 		ko.Spec.EngineVersion = nil
 	}
-	if resp.DomainStatus.IPAddressType != nil {
-		ko.Spec.IPAddressType = resp.DomainStatus.IPAddressType
+	if resp.DomainStatus.IPAddressType != "" {
+		ko.Spec.IPAddressType = aws.String(string(resp.DomainStatus.IPAddressType))
 	} else {
 		ko.Spec.IPAddressType = nil
 	}
-	if resp.DomainStatus.LogPublishingOptions != nil {
-		f23 := map[string]*svcapitypes.LogPublishingOption{}
-		for f23key, f23valiter := range resp.DomainStatus.LogPublishingOptions {
-			f23val := &svcapitypes.LogPublishingOption{}
-			if f23valiter.CloudWatchLogsLogGroupArn != nil {
-				f23val.CloudWatchLogsLogGroupARN = f23valiter.CloudWatchLogsLogGroupArn
-			}
-			if f23valiter.Enabled != nil {
-				f23val.Enabled = f23valiter.Enabled
-			}
-			f23[f23key] = f23val
+	if resp.DomainStatus.IdentityCenterOptions != nil {
+		f23 := &svcapitypes.IdentityCenterOptionsInput{}
+		if resp.DomainStatus.IdentityCenterOptions.EnabledAPIAccess != nil {
+			f23.EnabledAPIAccess = resp.DomainStatus.IdentityCenterOptions.EnabledAPIAccess
 		}
-		ko.Spec.LogPublishingOptions = f23
+		if resp.DomainStatus.IdentityCenterOptions.IdentityCenterInstanceARN != nil {
+			f23.IdentityCenterInstanceARN = resp.DomainStatus.IdentityCenterOptions.IdentityCenterInstanceARN
+		}
+		if resp.DomainStatus.IdentityCenterOptions.RolesKey != "" {
+			f23.RolesKey = aws.String(string(resp.DomainStatus.IdentityCenterOptions.RolesKey))
+		}
+		if resp.DomainStatus.IdentityCenterOptions.SubjectKey != "" {
+			f23.SubjectKey = aws.String(string(resp.DomainStatus.IdentityCenterOptions.SubjectKey))
+		}
+		ko.Spec.IdentityCenterOptions = f23
+	} else {
+		ko.Spec.IdentityCenterOptions = nil
+	}
+	if resp.DomainStatus.LogPublishingOptions != nil {
+		f24 := map[string]*svcapitypes.LogPublishingOption{}
+		for f24key, f24valiter := range resp.DomainStatus.LogPublishingOptions {
+			f24val := &svcapitypes.LogPublishingOption{}
+			if f24valiter.CloudWatchLogsLogGroupArn != nil {
+				f24val.CloudWatchLogsLogGroupARN = f24valiter.CloudWatchLogsLogGroupArn
+			}
+			if f24valiter.Enabled != nil {
+				f24val.Enabled = f24valiter.Enabled
+			}
+			f24[f24key] = f24val
+		}
+		ko.Spec.LogPublishingOptions = f24
 	} else {
 		ko.Spec.LogPublishingOptions = nil
 	}
 	if resp.DomainStatus.ModifyingProperties != nil {
-		f24 := []*svcapitypes.ModifyingProperties{}
-		for _, f24iter := range resp.DomainStatus.ModifyingProperties {
-			f24elem := &svcapitypes.ModifyingProperties{}
-			if f24iter.ActiveValue != nil {
-				f24elem.ActiveValue = f24iter.ActiveValue
+		f25 := []*svcapitypes.ModifyingProperties{}
+		for _, f25iter := range resp.DomainStatus.ModifyingProperties {
+			f25elem := &svcapitypes.ModifyingProperties{}
+			if f25iter.ActiveValue != nil {
+				f25elem.ActiveValue = f25iter.ActiveValue
 			}
-			if f24iter.Name != nil {
-				f24elem.Name = f24iter.Name
+			if f25iter.Name != nil {
+				f25elem.Name = f25iter.Name
 			}
-			if f24iter.PendingValue != nil {
-				f24elem.PendingValue = f24iter.PendingValue
+			if f25iter.PendingValue != nil {
+				f25elem.PendingValue = f25iter.PendingValue
 			}
-			if f24iter.ValueType != nil {
-				f24elem.ValueType = f24iter.ValueType
+			if f25iter.ValueType != "" {
+				f25elem.ValueType = aws.String(string(f25iter.ValueType))
 			}
-			f24 = append(f24, f24elem)
+			f25 = append(f25, f25elem)
 		}
-		ko.Status.ModifyingProperties = f24
+		ko.Status.ModifyingProperties = f25
 	} else {
 		ko.Status.ModifyingProperties = nil
 	}
 	if resp.DomainStatus.NodeToNodeEncryptionOptions != nil {
-		f25 := &svcapitypes.NodeToNodeEncryptionOptions{}
+		f26 := &svcapitypes.NodeToNodeEncryptionOptions{}
 		if resp.DomainStatus.NodeToNodeEncryptionOptions.Enabled != nil {
-			f25.Enabled = resp.DomainStatus.NodeToNodeEncryptionOptions.Enabled
+			f26.Enabled = resp.DomainStatus.NodeToNodeEncryptionOptions.Enabled
 		}
-		ko.Spec.NodeToNodeEncryptionOptions = f25
+		ko.Spec.NodeToNodeEncryptionOptions = f26
 	} else {
 		ko.Spec.NodeToNodeEncryptionOptions = nil
 	}
 	if resp.DomainStatus.OffPeakWindowOptions != nil {
-		f26 := &svcapitypes.OffPeakWindowOptions{}
+		f27 := &svcapitypes.OffPeakWindowOptions{}
 		if resp.DomainStatus.OffPeakWindowOptions.Enabled != nil {
-			f26.Enabled = resp.DomainStatus.OffPeakWindowOptions.Enabled
+			f27.Enabled = resp.DomainStatus.OffPeakWindowOptions.Enabled
 		}
 		if resp.DomainStatus.OffPeakWindowOptions.OffPeakWindow != nil {
-			f26f1 := &svcapitypes.OffPeakWindow{}
+			f27f1 := &svcapitypes.OffPeakWindow{}
 			if resp.DomainStatus.OffPeakWindowOptions.OffPeakWindow.WindowStartTime != nil {
-				f26f1f0 := &svcapitypes.WindowStartTime{}
-				if resp.DomainStatus.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Hours != nil {
-					f26f1f0.Hours = resp.DomainStatus.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Hours
-				}
-				if resp.DomainStatus.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Minutes != nil {
-					f26f1f0.Minutes = resp.DomainStatus.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Minutes
-				}
-				f26f1.WindowStartTime = f26f1f0
+				f27f1f0 := &svcapitypes.WindowStartTime{}
+				f27f1f0.Hours = &resp.DomainStatus.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Hours
+				f27f1f0.Minutes = &resp.DomainStatus.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Minutes
+				f27f1.WindowStartTime = f27f1f0
 			}
-			f26.OffPeakWindow = f26f1
+			f27.OffPeakWindow = f27f1
 		}
-		ko.Spec.OffPeakWindowOptions = f26
+		ko.Spec.OffPeakWindowOptions = f27
 	} else {
 		ko.Spec.OffPeakWindowOptions = nil
 	}
@@ -1001,50 +1060,51 @@ func (rm *resourceManager) sdkCreate(
 		ko.Status.Processing = nil
 	}
 	if resp.DomainStatus.ServiceSoftwareOptions != nil {
-		f28 := &svcapitypes.ServiceSoftwareOptions{}
+		f29 := &svcapitypes.ServiceSoftwareOptions{}
 		if resp.DomainStatus.ServiceSoftwareOptions.AutomatedUpdateDate != nil {
-			f28.AutomatedUpdateDate = &metav1.Time{*resp.DomainStatus.ServiceSoftwareOptions.AutomatedUpdateDate}
+			f29.AutomatedUpdateDate = &metav1.Time{*resp.DomainStatus.ServiceSoftwareOptions.AutomatedUpdateDate}
 		}
 		if resp.DomainStatus.ServiceSoftwareOptions.Cancellable != nil {
-			f28.Cancellable = resp.DomainStatus.ServiceSoftwareOptions.Cancellable
+			f29.Cancellable = resp.DomainStatus.ServiceSoftwareOptions.Cancellable
 		}
 		if resp.DomainStatus.ServiceSoftwareOptions.CurrentVersion != nil {
-			f28.CurrentVersion = resp.DomainStatus.ServiceSoftwareOptions.CurrentVersion
+			f29.CurrentVersion = resp.DomainStatus.ServiceSoftwareOptions.CurrentVersion
 		}
 		if resp.DomainStatus.ServiceSoftwareOptions.Description != nil {
-			f28.Description = resp.DomainStatus.ServiceSoftwareOptions.Description
+			f29.Description = resp.DomainStatus.ServiceSoftwareOptions.Description
 		}
 		if resp.DomainStatus.ServiceSoftwareOptions.NewVersion != nil {
-			f28.NewVersion = resp.DomainStatus.ServiceSoftwareOptions.NewVersion
+			f29.NewVersion = resp.DomainStatus.ServiceSoftwareOptions.NewVersion
 		}
 		if resp.DomainStatus.ServiceSoftwareOptions.OptionalDeployment != nil {
-			f28.OptionalDeployment = resp.DomainStatus.ServiceSoftwareOptions.OptionalDeployment
+			f29.OptionalDeployment = resp.DomainStatus.ServiceSoftwareOptions.OptionalDeployment
 		}
 		if resp.DomainStatus.ServiceSoftwareOptions.UpdateAvailable != nil {
-			f28.UpdateAvailable = resp.DomainStatus.ServiceSoftwareOptions.UpdateAvailable
+			f29.UpdateAvailable = resp.DomainStatus.ServiceSoftwareOptions.UpdateAvailable
 		}
-		if resp.DomainStatus.ServiceSoftwareOptions.UpdateStatus != nil {
-			f28.UpdateStatus = resp.DomainStatus.ServiceSoftwareOptions.UpdateStatus
+		if resp.DomainStatus.ServiceSoftwareOptions.UpdateStatus != "" {
+			f29.UpdateStatus = aws.String(string(resp.DomainStatus.ServiceSoftwareOptions.UpdateStatus))
 		}
-		ko.Status.ServiceSoftwareOptions = f28
+		ko.Status.ServiceSoftwareOptions = f29
 	} else {
 		ko.Status.ServiceSoftwareOptions = nil
 	}
 	if resp.DomainStatus.SnapshotOptions != nil {
-		f29 := &svcapitypes.SnapshotOptions{}
+		f30 := &svcapitypes.SnapshotOptions{}
 		if resp.DomainStatus.SnapshotOptions.AutomatedSnapshotStartHour != nil {
-			f29.AutomatedSnapshotStartHour = resp.DomainStatus.SnapshotOptions.AutomatedSnapshotStartHour
+			automatedSnapshotStartHourCopy := int64(*resp.DomainStatus.SnapshotOptions.AutomatedSnapshotStartHour)
+			f30.AutomatedSnapshotStartHour = &automatedSnapshotStartHourCopy
 		}
-		ko.Status.SnapshotOptions = f29
+		ko.Status.SnapshotOptions = f30
 	} else {
 		ko.Status.SnapshotOptions = nil
 	}
 	if resp.DomainStatus.SoftwareUpdateOptions != nil {
-		f30 := &svcapitypes.SoftwareUpdateOptions{}
+		f31 := &svcapitypes.SoftwareUpdateOptions{}
 		if resp.DomainStatus.SoftwareUpdateOptions.AutoSoftwareUpdateEnabled != nil {
-			f30.AutoSoftwareUpdateEnabled = resp.DomainStatus.SoftwareUpdateOptions.AutoSoftwareUpdateEnabled
+			f31.AutoSoftwareUpdateEnabled = resp.DomainStatus.SoftwareUpdateOptions.AutoSoftwareUpdateEnabled
 		}
-		ko.Spec.SoftwareUpdateOptions = f30
+		ko.Spec.SoftwareUpdateOptions = f31
 	} else {
 		ko.Spec.SoftwareUpdateOptions = nil
 	}
@@ -1054,26 +1114,14 @@ func (rm *resourceManager) sdkCreate(
 		ko.Status.UpgradeProcessing = nil
 	}
 	if resp.DomainStatus.VPCOptions != nil {
-		f32 := &svcapitypes.VPCOptions{}
+		f33 := &svcapitypes.VPCOptions{}
 		if resp.DomainStatus.VPCOptions.SecurityGroupIds != nil {
-			f32f1 := []*string{}
-			for _, f32f1iter := range resp.DomainStatus.VPCOptions.SecurityGroupIds {
-				var f32f1elem string
-				f32f1elem = *f32f1iter
-				f32f1 = append(f32f1, &f32f1elem)
-			}
-			f32.SecurityGroupIDs = f32f1
+			f33.SecurityGroupIDs = aws.StringSlice(resp.DomainStatus.VPCOptions.SecurityGroupIds)
 		}
 		if resp.DomainStatus.VPCOptions.SubnetIds != nil {
-			f32f2 := []*string{}
-			for _, f32f2iter := range resp.DomainStatus.VPCOptions.SubnetIds {
-				var f32f2elem string
-				f32f2elem = *f32f2iter
-				f32f2 = append(f32f2, &f32f2elem)
-			}
-			f32.SubnetIDs = f32f2
+			f33.SubnetIDs = aws.StringSlice(resp.DomainStatus.VPCOptions.SubnetIds)
 		}
-		ko.Spec.VPCOptions = f32
+		ko.Spec.VPCOptions = f33
 	} else {
 		ko.Spec.VPCOptions = nil
 	}
@@ -1098,62 +1146,56 @@ func (rm *resourceManager) newCreateRequestPayload(
 	res := &svcsdk.CreateDomainInput{}
 
 	if r.ko.Spec.AIMLOptions != nil {
-		f0 := &svcsdk.AIMLOptionsInput_{}
+		f0 := &svcsdktypes.AIMLOptionsInput{}
 		if r.ko.Spec.AIMLOptions.NATuralLanguageQueryGenerationOptions != nil {
-			f0f0 := &svcsdk.NaturalLanguageQueryGenerationOptionsInput_{}
+			f0f0 := &svcsdktypes.NaturalLanguageQueryGenerationOptionsInput{}
 			if r.ko.Spec.AIMLOptions.NATuralLanguageQueryGenerationOptions.DesiredState != nil {
-				f0f0.SetDesiredState(*r.ko.Spec.AIMLOptions.NATuralLanguageQueryGenerationOptions.DesiredState)
+				f0f0.DesiredState = svcsdktypes.NaturalLanguageQueryGenerationDesiredState(*r.ko.Spec.AIMLOptions.NATuralLanguageQueryGenerationOptions.DesiredState)
 			}
-			f0.SetNaturalLanguageQueryGenerationOptions(f0f0)
+			f0.NaturalLanguageQueryGenerationOptions = f0f0
 		}
-		res.SetAIMLOptions(f0)
+		res.AIMLOptions = f0
 	}
 	if r.ko.Spec.AccessPolicies != nil {
-		res.SetAccessPolicies(*r.ko.Spec.AccessPolicies)
+		res.AccessPolicies = r.ko.Spec.AccessPolicies
 	}
 	if r.ko.Spec.AdvancedOptions != nil {
-		f2 := map[string]*string{}
-		for f2key, f2valiter := range r.ko.Spec.AdvancedOptions {
-			var f2val string
-			f2val = *f2valiter
-			f2[f2key] = &f2val
-		}
-		res.SetAdvancedOptions(f2)
+		res.AdvancedOptions = aws.ToStringMap(r.ko.Spec.AdvancedOptions)
 	}
 	if r.ko.Spec.AdvancedSecurityOptions != nil {
-		f3 := &svcsdk.AdvancedSecurityOptionsInput_{}
+		f3 := &svcsdktypes.AdvancedSecurityOptionsInput{}
 		if r.ko.Spec.AdvancedSecurityOptions.AnonymousAuthEnabled != nil {
-			f3.SetAnonymousAuthEnabled(*r.ko.Spec.AdvancedSecurityOptions.AnonymousAuthEnabled)
+			f3.AnonymousAuthEnabled = r.ko.Spec.AdvancedSecurityOptions.AnonymousAuthEnabled
 		}
 		if r.ko.Spec.AdvancedSecurityOptions.Enabled != nil {
-			f3.SetEnabled(*r.ko.Spec.AdvancedSecurityOptions.Enabled)
+			f3.Enabled = r.ko.Spec.AdvancedSecurityOptions.Enabled
 		}
 		if r.ko.Spec.AdvancedSecurityOptions.InternalUserDatabaseEnabled != nil {
-			f3.SetInternalUserDatabaseEnabled(*r.ko.Spec.AdvancedSecurityOptions.InternalUserDatabaseEnabled)
+			f3.InternalUserDatabaseEnabled = r.ko.Spec.AdvancedSecurityOptions.InternalUserDatabaseEnabled
 		}
 		if r.ko.Spec.AdvancedSecurityOptions.JWTOptions != nil {
-			f3f3 := &svcsdk.JWTOptionsInput_{}
+			f3f3 := &svcsdktypes.JWTOptionsInput{}
 			if r.ko.Spec.AdvancedSecurityOptions.JWTOptions.Enabled != nil {
-				f3f3.SetEnabled(*r.ko.Spec.AdvancedSecurityOptions.JWTOptions.Enabled)
+				f3f3.Enabled = r.ko.Spec.AdvancedSecurityOptions.JWTOptions.Enabled
 			}
 			if r.ko.Spec.AdvancedSecurityOptions.JWTOptions.PublicKey != nil {
-				f3f3.SetPublicKey(*r.ko.Spec.AdvancedSecurityOptions.JWTOptions.PublicKey)
+				f3f3.PublicKey = r.ko.Spec.AdvancedSecurityOptions.JWTOptions.PublicKey
 			}
 			if r.ko.Spec.AdvancedSecurityOptions.JWTOptions.RolesKey != nil {
-				f3f3.SetRolesKey(*r.ko.Spec.AdvancedSecurityOptions.JWTOptions.RolesKey)
+				f3f3.RolesKey = r.ko.Spec.AdvancedSecurityOptions.JWTOptions.RolesKey
 			}
 			if r.ko.Spec.AdvancedSecurityOptions.JWTOptions.SubjectKey != nil {
-				f3f3.SetSubjectKey(*r.ko.Spec.AdvancedSecurityOptions.JWTOptions.SubjectKey)
+				f3f3.SubjectKey = r.ko.Spec.AdvancedSecurityOptions.JWTOptions.SubjectKey
 			}
-			f3.SetJWTOptions(f3f3)
+			f3.JWTOptions = f3f3
 		}
 		if r.ko.Spec.AdvancedSecurityOptions.MasterUserOptions != nil {
-			f3f4 := &svcsdk.MasterUserOptions{}
+			f3f4 := &svcsdktypes.MasterUserOptions{}
 			if r.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserARN != nil {
-				f3f4.SetMasterUserARN(*r.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserARN)
+				f3f4.MasterUserARN = r.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserARN
 			}
 			if r.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserName != nil {
-				f3f4.SetMasterUserName(*r.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserName)
+				f3f4.MasterUserName = r.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserName
 			}
 			if r.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword != nil {
 				tmpSecret, err := rm.rr.SecretValueFromReference(ctx, r.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword)
@@ -1161,284 +1203,348 @@ func (rm *resourceManager) newCreateRequestPayload(
 					return nil, ackrequeue.Needed(err)
 				}
 				if tmpSecret != "" {
-					f3f4.SetMasterUserPassword(tmpSecret)
+					f3f4.MasterUserPassword = aws.String(tmpSecret)
 				}
 			}
-			f3.SetMasterUserOptions(f3f4)
+			f3.MasterUserOptions = f3f4
 		}
 		if r.ko.Spec.AdvancedSecurityOptions.SAMLOptions != nil {
-			f3f5 := &svcsdk.SAMLOptionsInput_{}
+			f3f5 := &svcsdktypes.SAMLOptionsInput{}
 			if r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.Enabled != nil {
-				f3f5.SetEnabled(*r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.Enabled)
+				f3f5.Enabled = r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.Enabled
 			}
 			if r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.IDp != nil {
-				f3f5f1 := &svcsdk.SAMLIdp{}
+				f3f5f1 := &svcsdktypes.SAMLIdp{}
 				if r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.IDp.EntityID != nil {
-					f3f5f1.SetEntityId(*r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.IDp.EntityID)
+					f3f5f1.EntityId = r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.IDp.EntityID
 				}
 				if r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.IDp.MetadataContent != nil {
-					f3f5f1.SetMetadataContent(*r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.IDp.MetadataContent)
+					f3f5f1.MetadataContent = r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.IDp.MetadataContent
 				}
-				f3f5.SetIdp(f3f5f1)
+				f3f5.Idp = f3f5f1
 			}
 			if r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.MasterBackendRole != nil {
-				f3f5.SetMasterBackendRole(*r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.MasterBackendRole)
+				f3f5.MasterBackendRole = r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.MasterBackendRole
 			}
 			if r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.MasterUserName != nil {
-				f3f5.SetMasterUserName(*r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.MasterUserName)
+				f3f5.MasterUserName = r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.MasterUserName
 			}
 			if r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.RolesKey != nil {
-				f3f5.SetRolesKey(*r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.RolesKey)
+				f3f5.RolesKey = r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.RolesKey
 			}
 			if r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.SessionTimeoutMinutes != nil {
-				f3f5.SetSessionTimeoutMinutes(*r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.SessionTimeoutMinutes)
+				if *r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.SessionTimeoutMinutes > math.MaxInt32 || *r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.SessionTimeoutMinutes < math.MinInt32 {
+					return nil, fmt.Errorf("error: field SessionTimeoutMinutes is of type int32")
+				}
+				sessionTimeoutMinutesCopy := int32(*r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.SessionTimeoutMinutes)
+				f3f5.SessionTimeoutMinutes = &sessionTimeoutMinutesCopy
 			}
 			if r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.SubjectKey != nil {
-				f3f5.SetSubjectKey(*r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.SubjectKey)
+				f3f5.SubjectKey = r.ko.Spec.AdvancedSecurityOptions.SAMLOptions.SubjectKey
 			}
-			f3.SetSAMLOptions(f3f5)
+			f3.SAMLOptions = f3f5
 		}
-		res.SetAdvancedSecurityOptions(f3)
+		res.AdvancedSecurityOptions = f3
 	}
 	if r.ko.Spec.AutoTuneOptions != nil {
-		f4 := &svcsdk.AutoTuneOptionsInput_{}
+		f4 := &svcsdktypes.AutoTuneOptionsInput{}
 		if r.ko.Spec.AutoTuneOptions.DesiredState != nil {
-			f4.SetDesiredState(*r.ko.Spec.AutoTuneOptions.DesiredState)
+			f4.DesiredState = svcsdktypes.AutoTuneDesiredState(*r.ko.Spec.AutoTuneOptions.DesiredState)
 		}
 		if r.ko.Spec.AutoTuneOptions.MaintenanceSchedules != nil {
-			f4f1 := []*svcsdk.AutoTuneMaintenanceSchedule{}
+			f4f1 := []svcsdktypes.AutoTuneMaintenanceSchedule{}
 			for _, f4f1iter := range r.ko.Spec.AutoTuneOptions.MaintenanceSchedules {
-				f4f1elem := &svcsdk.AutoTuneMaintenanceSchedule{}
+				f4f1elem := &svcsdktypes.AutoTuneMaintenanceSchedule{}
 				if f4f1iter.CronExpressionForRecurrence != nil {
-					f4f1elem.SetCronExpressionForRecurrence(*f4f1iter.CronExpressionForRecurrence)
+					f4f1elem.CronExpressionForRecurrence = f4f1iter.CronExpressionForRecurrence
 				}
 				if f4f1iter.Duration != nil {
-					f4f1elemf1 := &svcsdk.Duration{}
+					f4f1elemf1 := &svcsdktypes.Duration{}
 					if f4f1iter.Duration.Unit != nil {
-						f4f1elemf1.SetUnit(*f4f1iter.Duration.Unit)
+						f4f1elemf1.Unit = svcsdktypes.TimeUnit(*f4f1iter.Duration.Unit)
 					}
 					if f4f1iter.Duration.Value != nil {
-						f4f1elemf1.SetValue(*f4f1iter.Duration.Value)
+						f4f1elemf1.Value = f4f1iter.Duration.Value
 					}
-					f4f1elem.SetDuration(f4f1elemf1)
+					f4f1elem.Duration = f4f1elemf1
 				}
 				if f4f1iter.StartAt != nil {
-					f4f1elem.SetStartAt(f4f1iter.StartAt.Time)
+					f4f1elem.StartAt = &f4f1iter.StartAt.Time
 				}
-				f4f1 = append(f4f1, f4f1elem)
+				f4f1 = append(f4f1, *f4f1elem)
 			}
-			f4.SetMaintenanceSchedules(f4f1)
+			f4.MaintenanceSchedules = f4f1
 		}
 		if r.ko.Spec.AutoTuneOptions.UseOffPeakWindow != nil {
-			f4.SetUseOffPeakWindow(*r.ko.Spec.AutoTuneOptions.UseOffPeakWindow)
+			f4.UseOffPeakWindow = r.ko.Spec.AutoTuneOptions.UseOffPeakWindow
 		}
-		res.SetAutoTuneOptions(f4)
+		res.AutoTuneOptions = f4
 	}
 	if r.ko.Spec.ClusterConfig != nil {
-		f5 := &svcsdk.ClusterConfig{}
+		f5 := &svcsdktypes.ClusterConfig{}
 		if r.ko.Spec.ClusterConfig.ColdStorageOptions != nil {
-			f5f0 := &svcsdk.ColdStorageOptions{}
+			f5f0 := &svcsdktypes.ColdStorageOptions{}
 			if r.ko.Spec.ClusterConfig.ColdStorageOptions.Enabled != nil {
-				f5f0.SetEnabled(*r.ko.Spec.ClusterConfig.ColdStorageOptions.Enabled)
+				f5f0.Enabled = r.ko.Spec.ClusterConfig.ColdStorageOptions.Enabled
 			}
-			f5.SetColdStorageOptions(f5f0)
+			f5.ColdStorageOptions = f5f0
 		}
 		if r.ko.Spec.ClusterConfig.DedicatedMasterCount != nil {
-			f5.SetDedicatedMasterCount(*r.ko.Spec.ClusterConfig.DedicatedMasterCount)
+			if *r.ko.Spec.ClusterConfig.DedicatedMasterCount > math.MaxInt32 || *r.ko.Spec.ClusterConfig.DedicatedMasterCount < math.MinInt32 {
+				return nil, fmt.Errorf("error: field DedicatedMasterCount is of type int32")
+			}
+			dedicatedMasterCountCopy := int32(*r.ko.Spec.ClusterConfig.DedicatedMasterCount)
+			f5.DedicatedMasterCount = &dedicatedMasterCountCopy
 		}
 		if r.ko.Spec.ClusterConfig.DedicatedMasterEnabled != nil {
-			f5.SetDedicatedMasterEnabled(*r.ko.Spec.ClusterConfig.DedicatedMasterEnabled)
+			f5.DedicatedMasterEnabled = r.ko.Spec.ClusterConfig.DedicatedMasterEnabled
 		}
 		if r.ko.Spec.ClusterConfig.DedicatedMasterType != nil {
-			f5.SetDedicatedMasterType(*r.ko.Spec.ClusterConfig.DedicatedMasterType)
+			f5.DedicatedMasterType = svcsdktypes.OpenSearchPartitionInstanceType(*r.ko.Spec.ClusterConfig.DedicatedMasterType)
 		}
 		if r.ko.Spec.ClusterConfig.InstanceCount != nil {
-			f5.SetInstanceCount(*r.ko.Spec.ClusterConfig.InstanceCount)
+			if *r.ko.Spec.ClusterConfig.InstanceCount > math.MaxInt32 || *r.ko.Spec.ClusterConfig.InstanceCount < math.MinInt32 {
+				return nil, fmt.Errorf("error: field InstanceCount is of type int32")
+			}
+			instanceCountCopy := int32(*r.ko.Spec.ClusterConfig.InstanceCount)
+			f5.InstanceCount = &instanceCountCopy
 		}
 		if r.ko.Spec.ClusterConfig.InstanceType != nil {
-			f5.SetInstanceType(*r.ko.Spec.ClusterConfig.InstanceType)
+			f5.InstanceType = svcsdktypes.OpenSearchPartitionInstanceType(*r.ko.Spec.ClusterConfig.InstanceType)
 		}
 		if r.ko.Spec.ClusterConfig.MultiAZWithStandbyEnabled != nil {
-			f5.SetMultiAZWithStandbyEnabled(*r.ko.Spec.ClusterConfig.MultiAZWithStandbyEnabled)
+			f5.MultiAZWithStandbyEnabled = r.ko.Spec.ClusterConfig.MultiAZWithStandbyEnabled
+		}
+		if r.ko.Spec.ClusterConfig.NodeOptions != nil {
+			f5f7 := []svcsdktypes.NodeOption{}
+			for _, f5f7iter := range r.ko.Spec.ClusterConfig.NodeOptions {
+				f5f7elem := &svcsdktypes.NodeOption{}
+				if f5f7iter.NodeConfig != nil {
+					f5f7elemf0 := &svcsdktypes.NodeConfig{}
+					if f5f7iter.NodeConfig.Count != nil {
+						if *f5f7iter.NodeConfig.Count > math.MaxInt32 || *f5f7iter.NodeConfig.Count < math.MinInt32 {
+							return nil, fmt.Errorf("error: field Count is of type int32")
+						}
+						countCopy := int32(*f5f7iter.NodeConfig.Count)
+						f5f7elemf0.Count = &countCopy
+					}
+					if f5f7iter.NodeConfig.Enabled != nil {
+						f5f7elemf0.Enabled = f5f7iter.NodeConfig.Enabled
+					}
+					if f5f7iter.NodeConfig.Type != nil {
+						f5f7elemf0.Type = svcsdktypes.OpenSearchPartitionInstanceType(*f5f7iter.NodeConfig.Type)
+					}
+					f5f7elem.NodeConfig = f5f7elemf0
+				}
+				if f5f7iter.NodeType != nil {
+					f5f7elem.NodeType = svcsdktypes.NodeOptionsNodeType(*f5f7iter.NodeType)
+				}
+				f5f7 = append(f5f7, *f5f7elem)
+			}
+			f5.NodeOptions = f5f7
 		}
 		if r.ko.Spec.ClusterConfig.WarmCount != nil {
-			f5.SetWarmCount(*r.ko.Spec.ClusterConfig.WarmCount)
+			if *r.ko.Spec.ClusterConfig.WarmCount > math.MaxInt32 || *r.ko.Spec.ClusterConfig.WarmCount < math.MinInt32 {
+				return nil, fmt.Errorf("error: field WarmCount is of type int32")
+			}
+			warmCountCopy := int32(*r.ko.Spec.ClusterConfig.WarmCount)
+			f5.WarmCount = &warmCountCopy
 		}
 		if r.ko.Spec.ClusterConfig.WarmEnabled != nil {
-			f5.SetWarmEnabled(*r.ko.Spec.ClusterConfig.WarmEnabled)
+			f5.WarmEnabled = r.ko.Spec.ClusterConfig.WarmEnabled
 		}
 		if r.ko.Spec.ClusterConfig.WarmType != nil {
-			f5.SetWarmType(*r.ko.Spec.ClusterConfig.WarmType)
+			f5.WarmType = svcsdktypes.OpenSearchWarmPartitionInstanceType(*r.ko.Spec.ClusterConfig.WarmType)
 		}
 		if r.ko.Spec.ClusterConfig.ZoneAwarenessConfig != nil {
-			f5f10 := &svcsdk.ZoneAwarenessConfig{}
+			f5f11 := &svcsdktypes.ZoneAwarenessConfig{}
 			if r.ko.Spec.ClusterConfig.ZoneAwarenessConfig.AvailabilityZoneCount != nil {
-				f5f10.SetAvailabilityZoneCount(*r.ko.Spec.ClusterConfig.ZoneAwarenessConfig.AvailabilityZoneCount)
+				if *r.ko.Spec.ClusterConfig.ZoneAwarenessConfig.AvailabilityZoneCount > math.MaxInt32 || *r.ko.Spec.ClusterConfig.ZoneAwarenessConfig.AvailabilityZoneCount < math.MinInt32 {
+					return nil, fmt.Errorf("error: field AvailabilityZoneCount is of type int32")
+				}
+				availabilityZoneCountCopy := int32(*r.ko.Spec.ClusterConfig.ZoneAwarenessConfig.AvailabilityZoneCount)
+				f5f11.AvailabilityZoneCount = &availabilityZoneCountCopy
 			}
-			f5.SetZoneAwarenessConfig(f5f10)
+			f5.ZoneAwarenessConfig = f5f11
 		}
 		if r.ko.Spec.ClusterConfig.ZoneAwarenessEnabled != nil {
-			f5.SetZoneAwarenessEnabled(*r.ko.Spec.ClusterConfig.ZoneAwarenessEnabled)
+			f5.ZoneAwarenessEnabled = r.ko.Spec.ClusterConfig.ZoneAwarenessEnabled
 		}
-		res.SetClusterConfig(f5)
+		res.ClusterConfig = f5
 	}
 	if r.ko.Spec.CognitoOptions != nil {
-		f6 := &svcsdk.CognitoOptions{}
+		f6 := &svcsdktypes.CognitoOptions{}
 		if r.ko.Spec.CognitoOptions.Enabled != nil {
-			f6.SetEnabled(*r.ko.Spec.CognitoOptions.Enabled)
+			f6.Enabled = r.ko.Spec.CognitoOptions.Enabled
 		}
 		if r.ko.Spec.CognitoOptions.IdentityPoolID != nil {
-			f6.SetIdentityPoolId(*r.ko.Spec.CognitoOptions.IdentityPoolID)
+			f6.IdentityPoolId = r.ko.Spec.CognitoOptions.IdentityPoolID
 		}
 		if r.ko.Spec.CognitoOptions.RoleARN != nil {
-			f6.SetRoleArn(*r.ko.Spec.CognitoOptions.RoleARN)
+			f6.RoleArn = r.ko.Spec.CognitoOptions.RoleARN
 		}
 		if r.ko.Spec.CognitoOptions.UserPoolID != nil {
-			f6.SetUserPoolId(*r.ko.Spec.CognitoOptions.UserPoolID)
+			f6.UserPoolId = r.ko.Spec.CognitoOptions.UserPoolID
 		}
-		res.SetCognitoOptions(f6)
+		res.CognitoOptions = f6
 	}
 	if r.ko.Spec.DomainEndpointOptions != nil {
-		f7 := &svcsdk.DomainEndpointOptions{}
+		f7 := &svcsdktypes.DomainEndpointOptions{}
 		if r.ko.Spec.DomainEndpointOptions.CustomEndpoint != nil {
-			f7.SetCustomEndpoint(*r.ko.Spec.DomainEndpointOptions.CustomEndpoint)
+			f7.CustomEndpoint = r.ko.Spec.DomainEndpointOptions.CustomEndpoint
 		}
 		if r.ko.Spec.DomainEndpointOptions.CustomEndpointCertificateARN != nil {
-			f7.SetCustomEndpointCertificateArn(*r.ko.Spec.DomainEndpointOptions.CustomEndpointCertificateARN)
+			f7.CustomEndpointCertificateArn = r.ko.Spec.DomainEndpointOptions.CustomEndpointCertificateARN
 		}
 		if r.ko.Spec.DomainEndpointOptions.CustomEndpointEnabled != nil {
-			f7.SetCustomEndpointEnabled(*r.ko.Spec.DomainEndpointOptions.CustomEndpointEnabled)
+			f7.CustomEndpointEnabled = r.ko.Spec.DomainEndpointOptions.CustomEndpointEnabled
 		}
 		if r.ko.Spec.DomainEndpointOptions.EnforceHTTPS != nil {
-			f7.SetEnforceHTTPS(*r.ko.Spec.DomainEndpointOptions.EnforceHTTPS)
+			f7.EnforceHTTPS = r.ko.Spec.DomainEndpointOptions.EnforceHTTPS
 		}
 		if r.ko.Spec.DomainEndpointOptions.TLSSecurityPolicy != nil {
-			f7.SetTLSSecurityPolicy(*r.ko.Spec.DomainEndpointOptions.TLSSecurityPolicy)
+			f7.TLSSecurityPolicy = svcsdktypes.TLSSecurityPolicy(*r.ko.Spec.DomainEndpointOptions.TLSSecurityPolicy)
 		}
-		res.SetDomainEndpointOptions(f7)
+		res.DomainEndpointOptions = f7
 	}
 	if r.ko.Spec.Name != nil {
-		res.SetDomainName(*r.ko.Spec.Name)
+		res.DomainName = r.ko.Spec.Name
 	}
 	if r.ko.Spec.EBSOptions != nil {
-		f9 := &svcsdk.EBSOptions{}
+		f9 := &svcsdktypes.EBSOptions{}
 		if r.ko.Spec.EBSOptions.EBSEnabled != nil {
-			f9.SetEBSEnabled(*r.ko.Spec.EBSOptions.EBSEnabled)
+			f9.EBSEnabled = r.ko.Spec.EBSOptions.EBSEnabled
 		}
 		if r.ko.Spec.EBSOptions.IOPS != nil {
-			f9.SetIops(*r.ko.Spec.EBSOptions.IOPS)
+			if *r.ko.Spec.EBSOptions.IOPS > math.MaxInt32 || *r.ko.Spec.EBSOptions.IOPS < math.MinInt32 {
+				return nil, fmt.Errorf("error: field Iops is of type int32")
+			}
+			iopsCopy := int32(*r.ko.Spec.EBSOptions.IOPS)
+			f9.Iops = &iopsCopy
 		}
 		if r.ko.Spec.EBSOptions.Throughput != nil {
-			f9.SetThroughput(*r.ko.Spec.EBSOptions.Throughput)
+			if *r.ko.Spec.EBSOptions.Throughput > math.MaxInt32 || *r.ko.Spec.EBSOptions.Throughput < math.MinInt32 {
+				return nil, fmt.Errorf("error: field Throughput is of type int32")
+			}
+			throughputCopy := int32(*r.ko.Spec.EBSOptions.Throughput)
+			f9.Throughput = &throughputCopy
 		}
 		if r.ko.Spec.EBSOptions.VolumeSize != nil {
-			f9.SetVolumeSize(*r.ko.Spec.EBSOptions.VolumeSize)
+			if *r.ko.Spec.EBSOptions.VolumeSize > math.MaxInt32 || *r.ko.Spec.EBSOptions.VolumeSize < math.MinInt32 {
+				return nil, fmt.Errorf("error: field VolumeSize is of type int32")
+			}
+			volumeSizeCopy := int32(*r.ko.Spec.EBSOptions.VolumeSize)
+			f9.VolumeSize = &volumeSizeCopy
 		}
 		if r.ko.Spec.EBSOptions.VolumeType != nil {
-			f9.SetVolumeType(*r.ko.Spec.EBSOptions.VolumeType)
+			f9.VolumeType = svcsdktypes.VolumeType(*r.ko.Spec.EBSOptions.VolumeType)
 		}
-		res.SetEBSOptions(f9)
+		res.EBSOptions = f9
 	}
 	if r.ko.Spec.EncryptionAtRestOptions != nil {
-		f10 := &svcsdk.EncryptionAtRestOptions{}
+		f10 := &svcsdktypes.EncryptionAtRestOptions{}
 		if r.ko.Spec.EncryptionAtRestOptions.Enabled != nil {
-			f10.SetEnabled(*r.ko.Spec.EncryptionAtRestOptions.Enabled)
+			f10.Enabled = r.ko.Spec.EncryptionAtRestOptions.Enabled
 		}
 		if r.ko.Spec.EncryptionAtRestOptions.KMSKeyID != nil {
-			f10.SetKmsKeyId(*r.ko.Spec.EncryptionAtRestOptions.KMSKeyID)
+			f10.KmsKeyId = r.ko.Spec.EncryptionAtRestOptions.KMSKeyID
 		}
-		res.SetEncryptionAtRestOptions(f10)
+		res.EncryptionAtRestOptions = f10
 	}
 	if r.ko.Spec.EngineVersion != nil {
-		res.SetEngineVersion(*r.ko.Spec.EngineVersion)
+		res.EngineVersion = r.ko.Spec.EngineVersion
 	}
 	if r.ko.Spec.IPAddressType != nil {
-		res.SetIPAddressType(*r.ko.Spec.IPAddressType)
+		res.IPAddressType = svcsdktypes.IPAddressType(*r.ko.Spec.IPAddressType)
+	}
+	if r.ko.Spec.IdentityCenterOptions != nil {
+		f13 := &svcsdktypes.IdentityCenterOptionsInput{}
+		if r.ko.Spec.IdentityCenterOptions.EnabledAPIAccess != nil {
+			f13.EnabledAPIAccess = r.ko.Spec.IdentityCenterOptions.EnabledAPIAccess
+		}
+		if r.ko.Spec.IdentityCenterOptions.IdentityCenterInstanceARN != nil {
+			f13.IdentityCenterInstanceARN = r.ko.Spec.IdentityCenterOptions.IdentityCenterInstanceARN
+		}
+		if r.ko.Spec.IdentityCenterOptions.RolesKey != nil {
+			f13.RolesKey = svcsdktypes.RolesKeyIdCOption(*r.ko.Spec.IdentityCenterOptions.RolesKey)
+		}
+		if r.ko.Spec.IdentityCenterOptions.SubjectKey != nil {
+			f13.SubjectKey = svcsdktypes.SubjectKeyIdCOption(*r.ko.Spec.IdentityCenterOptions.SubjectKey)
+		}
+		res.IdentityCenterOptions = f13
 	}
 	if r.ko.Spec.LogPublishingOptions != nil {
-		f13 := map[string]*svcsdk.LogPublishingOption{}
-		for f13key, f13valiter := range r.ko.Spec.LogPublishingOptions {
-			f13val := &svcsdk.LogPublishingOption{}
-			if f13valiter.CloudWatchLogsLogGroupARN != nil {
-				f13val.SetCloudWatchLogsLogGroupArn(*f13valiter.CloudWatchLogsLogGroupARN)
+		f14 := map[string]svcsdktypes.LogPublishingOption{}
+		for f14key, f14valiter := range r.ko.Spec.LogPublishingOptions {
+			f14val := &svcsdktypes.LogPublishingOption{}
+			if f14valiter.CloudWatchLogsLogGroupARN != nil {
+				f14val.CloudWatchLogsLogGroupArn = f14valiter.CloudWatchLogsLogGroupARN
 			}
-			if f13valiter.Enabled != nil {
-				f13val.SetEnabled(*f13valiter.Enabled)
+			if f14valiter.Enabled != nil {
+				f14val.Enabled = f14valiter.Enabled
 			}
-			f13[f13key] = f13val
+			f14[f14key] = *f14val
 		}
-		res.SetLogPublishingOptions(f13)
+		res.LogPublishingOptions = f14
 	}
 	if r.ko.Spec.NodeToNodeEncryptionOptions != nil {
-		f14 := &svcsdk.NodeToNodeEncryptionOptions{}
+		f15 := &svcsdktypes.NodeToNodeEncryptionOptions{}
 		if r.ko.Spec.NodeToNodeEncryptionOptions.Enabled != nil {
-			f14.SetEnabled(*r.ko.Spec.NodeToNodeEncryptionOptions.Enabled)
+			f15.Enabled = r.ko.Spec.NodeToNodeEncryptionOptions.Enabled
 		}
-		res.SetNodeToNodeEncryptionOptions(f14)
+		res.NodeToNodeEncryptionOptions = f15
 	}
 	if r.ko.Spec.OffPeakWindowOptions != nil {
-		f15 := &svcsdk.OffPeakWindowOptions{}
+		f16 := &svcsdktypes.OffPeakWindowOptions{}
 		if r.ko.Spec.OffPeakWindowOptions.Enabled != nil {
-			f15.SetEnabled(*r.ko.Spec.OffPeakWindowOptions.Enabled)
+			f16.Enabled = r.ko.Spec.OffPeakWindowOptions.Enabled
 		}
 		if r.ko.Spec.OffPeakWindowOptions.OffPeakWindow != nil {
-			f15f1 := &svcsdk.OffPeakWindow{}
+			f16f1 := &svcsdktypes.OffPeakWindow{}
 			if r.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime != nil {
-				f15f1f0 := &svcsdk.WindowStartTime{}
+				f16f1f0 := &svcsdktypes.WindowStartTime{}
 				if r.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Hours != nil {
-					f15f1f0.SetHours(*r.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Hours)
+					f16f1f0.Hours = *r.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Hours
 				}
 				if r.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Minutes != nil {
-					f15f1f0.SetMinutes(*r.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Minutes)
+					f16f1f0.Minutes = *r.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Minutes
 				}
-				f15f1.SetWindowStartTime(f15f1f0)
+				f16f1.WindowStartTime = f16f1f0
 			}
-			f15.SetOffPeakWindow(f15f1)
+			f16.OffPeakWindow = f16f1
 		}
-		res.SetOffPeakWindowOptions(f15)
+		res.OffPeakWindowOptions = f16
 	}
 	if r.ko.Spec.SoftwareUpdateOptions != nil {
-		f16 := &svcsdk.SoftwareUpdateOptions{}
+		f17 := &svcsdktypes.SoftwareUpdateOptions{}
 		if r.ko.Spec.SoftwareUpdateOptions.AutoSoftwareUpdateEnabled != nil {
-			f16.SetAutoSoftwareUpdateEnabled(*r.ko.Spec.SoftwareUpdateOptions.AutoSoftwareUpdateEnabled)
+			f17.AutoSoftwareUpdateEnabled = r.ko.Spec.SoftwareUpdateOptions.AutoSoftwareUpdateEnabled
 		}
-		res.SetSoftwareUpdateOptions(f16)
+		res.SoftwareUpdateOptions = f17
 	}
 	if r.ko.Spec.Tags != nil {
-		f17 := []*svcsdk.Tag{}
-		for _, f17iter := range r.ko.Spec.Tags {
-			f17elem := &svcsdk.Tag{}
-			if f17iter.Key != nil {
-				f17elem.SetKey(*f17iter.Key)
+		f18 := []svcsdktypes.Tag{}
+		for _, f18iter := range r.ko.Spec.Tags {
+			f18elem := &svcsdktypes.Tag{}
+			if f18iter.Key != nil {
+				f18elem.Key = f18iter.Key
 			}
-			if f17iter.Value != nil {
-				f17elem.SetValue(*f17iter.Value)
+			if f18iter.Value != nil {
+				f18elem.Value = f18iter.Value
 			}
-			f17 = append(f17, f17elem)
+			f18 = append(f18, *f18elem)
 		}
-		res.SetTagList(f17)
+		res.TagList = f18
 	}
 	if r.ko.Spec.VPCOptions != nil {
-		f18 := &svcsdk.VPCOptions{}
+		f19 := &svcsdktypes.VPCOptions{}
 		if r.ko.Spec.VPCOptions.SecurityGroupIDs != nil {
-			f18f0 := []*string{}
-			for _, f18f0iter := range r.ko.Spec.VPCOptions.SecurityGroupIDs {
-				var f18f0elem string
-				f18f0elem = *f18f0iter
-				f18f0 = append(f18f0, &f18f0elem)
-			}
-			f18.SetSecurityGroupIds(f18f0)
+			f19.SecurityGroupIds = aws.ToStringSlice(r.ko.Spec.VPCOptions.SecurityGroupIDs)
 		}
 		if r.ko.Spec.VPCOptions.SubnetIDs != nil {
-			f18f1 := []*string{}
-			for _, f18f1iter := range r.ko.Spec.VPCOptions.SubnetIDs {
-				var f18f1elem string
-				f18f1elem = *f18f1iter
-				f18f1 = append(f18f1, &f18f1elem)
-			}
-			f18.SetSubnetIds(f18f1)
+			f19.SubnetIds = aws.ToStringSlice(r.ko.Spec.VPCOptions.SubnetIDs)
 		}
-		res.SetVPCOptions(f18)
+		res.VPCOptions = f19
 	}
 
 	return res, nil
@@ -1475,7 +1581,7 @@ func (rm *resourceManager) sdkDelete(
 	}
 	var resp *svcsdk.DeleteDomainOutput
 	_ = resp
-	resp, err = rm.sdkapi.DeleteDomainWithContext(ctx, input)
+	resp, err = rm.sdkapi.DeleteDomain(ctx, input)
 	rm.metrics.RecordAPICall("DELETE", "DeleteDomain", err)
 	return nil, err
 }
@@ -1488,7 +1594,7 @@ func (rm *resourceManager) newDeleteRequestPayload(
 	res := &svcsdk.DeleteDomainInput{}
 
 	if r.ko.Spec.Name != nil {
-		res.SetDomainName(*r.ko.Spec.Name)
+		res.DomainName = r.ko.Spec.Name
 	}
 
 	return res, nil
@@ -1601,12 +1707,8 @@ func (rm *resourceManager) terminalAWSError(err error) bool {
 	if err == nil {
 		return false
 	}
-	awsErr, ok := ackerr.AWSError(err)
-	if !ok {
-		return false
-	}
-	switch awsErr.Code() {
-	case "ValidationException":
+	switch err.(type) {
+	case *svcsdktypes.ValidationException:
 		return true
 	default:
 		return false

@@ -237,6 +237,26 @@ spec:
                     type: string
                   multiAZWithStandbyEnabled:
                     type: boolean
+                  nodeOptions:
+                    items:
+                      description: Container for specifying node type.
+                      properties:
+                        nodeConfig:
+                          description: Container for specifying configuration of any
+                            node type.
+                          properties:
+                            count:
+                              format: int64
+                              type: integer
+                            enabled:
+                              type: boolean
+                            type_:
+                              type: string
+                          type: object
+                        nodeType:
+                          type: string
+                      type: object
+                    type: array
                   warmCount:
                     format: int64
                     type: integer
@@ -326,6 +346,19 @@ spec:
                   Elasticsearch_7.9. For more information, see Creating and managing Amazon
                   OpenSearch Service domains (https://docs.aws.amazon.com/opensearch-service/latest/developerguide/createupdatedomains.html#createdomains).
                 type: string
+              identityCenterOptions:
+                description: Options for IAM Identity Center Option control for the
+                  domain.
+                properties:
+                  enabledAPIAccess:
+                    type: boolean
+                  identityCenterInstanceARN:
+                    type: string
+                  rolesKey:
+                    type: string
+                  subjectKey:
+                    type: string
+                type: object
               ipAddressType:
                 description: |-
                   Specify either dual stack or IPv4 as your IP address type. Dual stack allows
