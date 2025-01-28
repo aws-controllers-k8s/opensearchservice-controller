@@ -299,6 +299,13 @@ func newResourceDelta(
 				delta.Add("Spec.ClusterConfig.MultiAZWithStandbyEnabled", a.ko.Spec.ClusterConfig.MultiAZWithStandbyEnabled, b.ko.Spec.ClusterConfig.MultiAZWithStandbyEnabled)
 			}
 		}
+		if len(a.ko.Spec.ClusterConfig.NodeOptions) != len(b.ko.Spec.ClusterConfig.NodeOptions) {
+			delta.Add("Spec.ClusterConfig.NodeOptions", a.ko.Spec.ClusterConfig.NodeOptions, b.ko.Spec.ClusterConfig.NodeOptions)
+		} else if len(a.ko.Spec.ClusterConfig.NodeOptions) > 0 {
+			if !reflect.DeepEqual(a.ko.Spec.ClusterConfig.NodeOptions, b.ko.Spec.ClusterConfig.NodeOptions) {
+				delta.Add("Spec.ClusterConfig.NodeOptions", a.ko.Spec.ClusterConfig.NodeOptions, b.ko.Spec.ClusterConfig.NodeOptions)
+			}
+		}
 		if ackcompare.HasNilDifference(a.ko.Spec.ClusterConfig.WarmCount, b.ko.Spec.ClusterConfig.WarmCount) {
 			delta.Add("Spec.ClusterConfig.WarmCount", a.ko.Spec.ClusterConfig.WarmCount, b.ko.Spec.ClusterConfig.WarmCount)
 		} else if a.ko.Spec.ClusterConfig.WarmCount != nil && b.ko.Spec.ClusterConfig.WarmCount != nil {
@@ -479,6 +486,38 @@ func newResourceDelta(
 	} else if a.ko.Spec.IPAddressType != nil && b.ko.Spec.IPAddressType != nil {
 		if *a.ko.Spec.IPAddressType != *b.ko.Spec.IPAddressType {
 			delta.Add("Spec.IPAddressType", a.ko.Spec.IPAddressType, b.ko.Spec.IPAddressType)
+		}
+	}
+	if ackcompare.HasNilDifference(a.ko.Spec.IdentityCenterOptions, b.ko.Spec.IdentityCenterOptions) {
+		delta.Add("Spec.IdentityCenterOptions", a.ko.Spec.IdentityCenterOptions, b.ko.Spec.IdentityCenterOptions)
+	} else if a.ko.Spec.IdentityCenterOptions != nil && b.ko.Spec.IdentityCenterOptions != nil {
+		if ackcompare.HasNilDifference(a.ko.Spec.IdentityCenterOptions.EnabledAPIAccess, b.ko.Spec.IdentityCenterOptions.EnabledAPIAccess) {
+			delta.Add("Spec.IdentityCenterOptions.EnabledAPIAccess", a.ko.Spec.IdentityCenterOptions.EnabledAPIAccess, b.ko.Spec.IdentityCenterOptions.EnabledAPIAccess)
+		} else if a.ko.Spec.IdentityCenterOptions.EnabledAPIAccess != nil && b.ko.Spec.IdentityCenterOptions.EnabledAPIAccess != nil {
+			if *a.ko.Spec.IdentityCenterOptions.EnabledAPIAccess != *b.ko.Spec.IdentityCenterOptions.EnabledAPIAccess {
+				delta.Add("Spec.IdentityCenterOptions.EnabledAPIAccess", a.ko.Spec.IdentityCenterOptions.EnabledAPIAccess, b.ko.Spec.IdentityCenterOptions.EnabledAPIAccess)
+			}
+		}
+		if ackcompare.HasNilDifference(a.ko.Spec.IdentityCenterOptions.IdentityCenterInstanceARN, b.ko.Spec.IdentityCenterOptions.IdentityCenterInstanceARN) {
+			delta.Add("Spec.IdentityCenterOptions.IdentityCenterInstanceARN", a.ko.Spec.IdentityCenterOptions.IdentityCenterInstanceARN, b.ko.Spec.IdentityCenterOptions.IdentityCenterInstanceARN)
+		} else if a.ko.Spec.IdentityCenterOptions.IdentityCenterInstanceARN != nil && b.ko.Spec.IdentityCenterOptions.IdentityCenterInstanceARN != nil {
+			if *a.ko.Spec.IdentityCenterOptions.IdentityCenterInstanceARN != *b.ko.Spec.IdentityCenterOptions.IdentityCenterInstanceARN {
+				delta.Add("Spec.IdentityCenterOptions.IdentityCenterInstanceARN", a.ko.Spec.IdentityCenterOptions.IdentityCenterInstanceARN, b.ko.Spec.IdentityCenterOptions.IdentityCenterInstanceARN)
+			}
+		}
+		if ackcompare.HasNilDifference(a.ko.Spec.IdentityCenterOptions.RolesKey, b.ko.Spec.IdentityCenterOptions.RolesKey) {
+			delta.Add("Spec.IdentityCenterOptions.RolesKey", a.ko.Spec.IdentityCenterOptions.RolesKey, b.ko.Spec.IdentityCenterOptions.RolesKey)
+		} else if a.ko.Spec.IdentityCenterOptions.RolesKey != nil && b.ko.Spec.IdentityCenterOptions.RolesKey != nil {
+			if *a.ko.Spec.IdentityCenterOptions.RolesKey != *b.ko.Spec.IdentityCenterOptions.RolesKey {
+				delta.Add("Spec.IdentityCenterOptions.RolesKey", a.ko.Spec.IdentityCenterOptions.RolesKey, b.ko.Spec.IdentityCenterOptions.RolesKey)
+			}
+		}
+		if ackcompare.HasNilDifference(a.ko.Spec.IdentityCenterOptions.SubjectKey, b.ko.Spec.IdentityCenterOptions.SubjectKey) {
+			delta.Add("Spec.IdentityCenterOptions.SubjectKey", a.ko.Spec.IdentityCenterOptions.SubjectKey, b.ko.Spec.IdentityCenterOptions.SubjectKey)
+		} else if a.ko.Spec.IdentityCenterOptions.SubjectKey != nil && b.ko.Spec.IdentityCenterOptions.SubjectKey != nil {
+			if *a.ko.Spec.IdentityCenterOptions.SubjectKey != *b.ko.Spec.IdentityCenterOptions.SubjectKey {
+				delta.Add("Spec.IdentityCenterOptions.SubjectKey", a.ko.Spec.IdentityCenterOptions.SubjectKey, b.ko.Spec.IdentityCenterOptions.SubjectKey)
+			}
 		}
 	}
 	if len(a.ko.Spec.LogPublishingOptions) != len(b.ko.Spec.LogPublishingOptions) {

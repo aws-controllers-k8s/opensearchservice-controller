@@ -81,6 +81,8 @@ type DomainSpec struct {
 	// the recommended option. If you set your IP address type to dual stack, you
 	// can't change your address type later.
 	IPAddressType *string `json:"ipAddressType,omitempty"`
+	// Options for IAM Identity Center Option control for the domain.
+	IdentityCenterOptions *IdentityCenterOptionsInput `json:"identityCenterOptions,omitempty"`
 	// Key-value pairs to configure log publishing.
 	LogPublishingOptions map[string]*LogPublishingOption `json:"logPublishingOptions,omitempty"`
 	// Name of the OpenSearch Service domain to create. Domain names are unique
