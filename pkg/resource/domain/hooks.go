@@ -16,21 +16,23 @@ package domain
 import (
 	"context"
 	"errors"
+
 	"github.com/aws-controllers-k8s/opensearchservice-controller/apis/v1alpha1"
 	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
 	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
 	ackcondition "github.com/aws-controllers-k8s/runtime/pkg/condition"
 	ackrequeue "github.com/aws-controllers-k8s/runtime/pkg/requeue"
 	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
-	"github.com/aws/aws-sdk-go/aws"
-	svcsdk "github.com/aws/aws-sdk-go/service/opensearchservice"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	svcsdk "github.com/aws/aws-sdk-go-v2/service/opensearch"
+	svcsdktypes "github.com/aws/aws-sdk-go-v2/service/opensearch/types"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
 	requeueWaitWhileProcessing = ackrequeue.NeededAfter(
-		errors.New("domain is currently processing changes, cannot be modified or deleted."),
+		errors.New("domain is currently processing changes, cannot be modified or deleted"),
 		ackrequeue.DefaultRequeueAfterDuration,
 	)
 )
@@ -55,7 +57,7 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		ackcondition.SetSynced(desired, corev1.ConditionFalse, &msg, nil)
 		return desired, requeueWaitWhileProcessing
 	}
-	if latest.ko.Status.UpgradeProcessing != nil && *latest.ko.Status.UpgradeProcessing == true {
+	if latest.ko.Status.UpgradeProcessing != nil && *latest.ko.Status.UpgradeProcessing {
 		msg := "Domain is currently upgrading software"
 		ackcondition.SetSynced(desired, corev1.ConditionFalse, &msg, nil)
 		return desired, requeueWaitWhileProcessing
@@ -71,8 +73,12 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 			advancedOptions = make(map[string]*string)
 			advancedOptions[allowedAdvancedOption] = desired.ko.Spec.AdvancedOptions[allowedAdvancedOption]
 		}
-		resp, err := rm.sdkapi.UpgradeDomainWithContext(ctx, &svcsdk.UpgradeDomainInput{
-			AdvancedOptions:  advancedOptions,
+		advancedOptions_string := make(map[string]string)
+		for k, v := range advancedOptions {
+			advancedOptions_string[k] = *v
+		}
+		resp, err := rm.sdkapi.UpgradeDomain(ctx, &svcsdk.UpgradeDomainInput{
+			AdvancedOptions:  advancedOptions_string,
 			DomainName:       latest.ko.Spec.Name,
 			PerformCheckOnly: nil,
 			TargetVersion:    desired.ko.Spec.EngineVersion,
@@ -104,7 +110,7 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		return nil, err
 	}
 
-	resp, err := rm.sdkapi.UpdateDomainConfigWithContext(ctx, input)
+	resp, err := rm.sdkapi.UpdateDomainConfig(ctx, input)
 	rm.metrics.RecordAPICall("UPDATE", "UpdateDomainConfig", err)
 	if err != nil {
 		return nil, err
@@ -133,7 +139,11 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		ko.Spec.AccessPolicies = nil
 	}
 	if resp.DomainConfig.AdvancedOptions != nil {
-		ko.Spec.AdvancedOptions = resp.DomainConfig.AdvancedOptions.Options
+		advancedOptions_ptr_string := make(map[string]*string)
+		for k, v := range resp.DomainConfig.AdvancedOptions.Options {
+			advancedOptions_ptr_string[k] = &v
+		}
+		ko.Spec.AdvancedOptions = advancedOptions_ptr_string
 	} else {
 		ko.Spec.AdvancedOptions = nil
 	}
@@ -143,7 +153,7 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 			samlOptions = &v1alpha1.SAMLOptionsInput{
 				Enabled:               resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.Enabled,
 				RolesKey:              resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.RolesKey,
-				SessionTimeoutMinutes: resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.SessionTimeoutMinutes,
+				SessionTimeoutMinutes: aws.Int64(int64(*resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.SessionTimeoutMinutes)),
 				SubjectKey:            resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.SubjectKey,
 			}
 			if resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.Idp != nil {
@@ -169,7 +179,7 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 			maintSchedules[i] = &v1alpha1.AutoTuneMaintenanceSchedule{
 				CronExpressionForRecurrence: sched.CronExpressionForRecurrence,
 				Duration: &v1alpha1.Duration{
-					Unit:  sched.Duration.Unit,
+					Unit:  aws.String(string(sched.Duration.Unit)),
 					Value: sched.Duration.Value,
 				},
 			}
@@ -178,7 +188,7 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 			}
 		}
 		ko.Spec.AutoTuneOptions = &v1alpha1.AutoTuneOptionsInput{
-			DesiredState:         resp.DomainConfig.AutoTuneOptions.Options.DesiredState,
+			DesiredState:         aws.String(string(resp.DomainConfig.AutoTuneOptions.Options.DesiredState)),
 			MaintenanceSchedules: maintSchedules,
 		}
 	} else {
@@ -194,19 +204,19 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		var zaConfig *v1alpha1.ZoneAwarenessConfig
 		if resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessConfig != nil {
 			zaConfig = &v1alpha1.ZoneAwarenessConfig{
-				AvailabilityZoneCount: resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessConfig.AvailabilityZoneCount,
+				AvailabilityZoneCount: aws.Int64(int64(*resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessConfig.AvailabilityZoneCount)),
 			}
 		}
 		ko.Spec.ClusterConfig = &v1alpha1.ClusterConfig{
 			ColdStorageOptions:     csOptions,
-			DedicatedMasterCount:   resp.DomainConfig.ClusterConfig.Options.DedicatedMasterCount,
+			DedicatedMasterCount:   aws.Int64(int64(*resp.DomainConfig.ClusterConfig.Options.DedicatedMasterCount)),
 			DedicatedMasterEnabled: resp.DomainConfig.ClusterConfig.Options.DedicatedMasterEnabled,
-			DedicatedMasterType:    resp.DomainConfig.ClusterConfig.Options.DedicatedMasterType,
-			InstanceCount:          resp.DomainConfig.ClusterConfig.Options.InstanceCount,
-			InstanceType:           resp.DomainConfig.ClusterConfig.Options.InstanceType,
-			WarmCount:              resp.DomainConfig.ClusterConfig.Options.WarmCount,
+			DedicatedMasterType:    aws.String(string(resp.DomainConfig.ClusterConfig.Options.DedicatedMasterType)),
+			InstanceCount:          aws.Int64(int64(*resp.DomainConfig.ClusterConfig.Options.InstanceCount)),
+			InstanceType:           aws.String(string(resp.DomainConfig.ClusterConfig.Options.InstanceType)),
+			WarmCount:              aws.Int64(int64(*resp.DomainConfig.ClusterConfig.Options.WarmCount)),
 			WarmEnabled:            resp.DomainConfig.ClusterConfig.Options.WarmEnabled,
-			WarmType:               resp.DomainConfig.ClusterConfig.Options.WarmType,
+			WarmType:               aws.String(string(resp.DomainConfig.ClusterConfig.Options.WarmType)),
 			ZoneAwarenessConfig:    zaConfig,
 			ZoneAwarenessEnabled:   resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessEnabled,
 		}
@@ -229,7 +239,7 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 			CustomEndpointCertificateARN: resp.DomainConfig.DomainEndpointOptions.Options.CustomEndpointCertificateArn,
 			CustomEndpointEnabled:        resp.DomainConfig.DomainEndpointOptions.Options.CustomEndpointEnabled,
 			EnforceHTTPS:                 resp.DomainConfig.DomainEndpointOptions.Options.EnforceHTTPS,
-			TLSSecurityPolicy:            resp.DomainConfig.DomainEndpointOptions.Options.TLSSecurityPolicy,
+			TLSSecurityPolicy:            aws.String(string(resp.DomainConfig.DomainEndpointOptions.Options.TLSSecurityPolicy)),
 		}
 	} else {
 		ko.Spec.DomainEndpointOptions = nil
@@ -237,10 +247,10 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 	if resp.DomainConfig.EBSOptions != nil {
 		ko.Spec.EBSOptions = &v1alpha1.EBSOptions{
 			EBSEnabled: resp.DomainConfig.EBSOptions.Options.EBSEnabled,
-			IOPS:       resp.DomainConfig.EBSOptions.Options.Iops,
-			Throughput: resp.DomainConfig.EBSOptions.Options.Throughput,
-			VolumeSize: resp.DomainConfig.EBSOptions.Options.VolumeSize,
-			VolumeType: resp.DomainConfig.EBSOptions.Options.VolumeType,
+			IOPS:       aws.Int64(int64(*resp.DomainConfig.EBSOptions.Options.Iops)),
+			Throughput: aws.Int64(int64(*resp.DomainConfig.EBSOptions.Options.Throughput)),
+			VolumeSize: aws.Int64(int64(*resp.DomainConfig.EBSOptions.Options.VolumeSize)),
+			VolumeType: aws.String(string(resp.DomainConfig.EBSOptions.Options.VolumeType)),
 		}
 	} else {
 		ko.Spec.EBSOptions = nil
@@ -294,31 +304,35 @@ func (rm *resourceManager) newCustomUpdateRequestPayload(
 	res := &svcsdk.UpdateDomainConfigInput{DomainName: latest.ko.Spec.Name}
 
 	if desired.ko.Spec.AccessPolicies != nil && delta.DifferentAt("Spec.AccessPolicies") {
-		res.SetAccessPolicies(*desired.ko.Spec.AccessPolicies)
+		res.AccessPolicies = desired.ko.Spec.AccessPolicies
 	}
 
 	if desired.ko.Spec.AdvancedOptions != nil && delta.DifferentAt("Spec.AdvancedOptions") {
-		res.SetAdvancedOptions(desired.ko.Spec.AdvancedOptions)
+		advancedOptions_string := make(map[string]string)
+		for k, v := range desired.ko.Spec.AdvancedOptions {
+			advancedOptions_string[k] = *v
+		}
+		res.AdvancedOptions = advancedOptions_string
 	}
 
 	if desired.ko.Spec.AdvancedSecurityOptions != nil && delta.DifferentAt("Spec.AdvancedSecurityOptions") {
-		f2 := &svcsdk.AdvancedSecurityOptionsInput_{}
+		f2 := &svcsdktypes.AdvancedSecurityOptionsInput{}
 		if desired.ko.Spec.AdvancedSecurityOptions.AnonymousAuthEnabled != nil {
-			f2.SetAnonymousAuthEnabled(*desired.ko.Spec.AdvancedSecurityOptions.AnonymousAuthEnabled)
+			f2.AnonymousAuthEnabled = desired.ko.Spec.AdvancedSecurityOptions.AnonymousAuthEnabled
 		}
 		if desired.ko.Spec.AdvancedSecurityOptions.Enabled != nil {
-			f2.SetEnabled(*desired.ko.Spec.AdvancedSecurityOptions.Enabled)
+			f2.Enabled = desired.ko.Spec.AdvancedSecurityOptions.Enabled
 		}
 		if desired.ko.Spec.AdvancedSecurityOptions.InternalUserDatabaseEnabled != nil {
-			f2.SetInternalUserDatabaseEnabled(*desired.ko.Spec.AdvancedSecurityOptions.InternalUserDatabaseEnabled)
+			f2.InternalUserDatabaseEnabled = desired.ko.Spec.AdvancedSecurityOptions.InternalUserDatabaseEnabled
 		}
 		if desired.ko.Spec.AdvancedSecurityOptions.MasterUserOptions != nil {
-			f2f3 := &svcsdk.MasterUserOptions{}
+			f2f3 := &svcsdktypes.MasterUserOptions{}
 			if desired.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserARN != nil {
-				f2f3.SetMasterUserARN(*desired.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserARN)
+				f2f3.MasterUserARN = desired.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserARN
 			}
 			if desired.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserName != nil {
-				f2f3.SetMasterUserName(*desired.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserName)
+				f2f3.MasterUserName = desired.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserName
 			}
 			if desired.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword != nil {
 				tmpSecret, err := rm.rr.SecretValueFromReference(ctx, desired.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword)
@@ -326,235 +340,233 @@ func (rm *resourceManager) newCustomUpdateRequestPayload(
 					return nil, ackrequeue.Needed(err)
 				}
 				if tmpSecret != "" {
-					f2f3.SetMasterUserPassword(tmpSecret)
+					f2f3.MasterUserPassword = &tmpSecret
 				}
 			}
-			f2.SetMasterUserOptions(f2f3)
+			f2.MasterUserOptions = f2f3
 		}
 		if desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions != nil {
-			f2f4 := &svcsdk.SAMLOptionsInput_{}
+			f2f4 := &svcsdktypes.SAMLOptionsInput{}
 			if desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.Enabled != nil {
-				f2f4.SetEnabled(*desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.Enabled)
+				f2f4.Enabled = desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.Enabled
 			}
 			if desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.IDp != nil {
-				f2f4f1 := &svcsdk.SAMLIdp{}
+				f2f4f1 := &svcsdktypes.SAMLIdp{}
 				if desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.IDp.EntityID != nil {
-					f2f4f1.SetEntityId(*desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.IDp.EntityID)
+					f2f4f1.EntityId = desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.IDp.EntityID
 				}
 				if desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.IDp.MetadataContent != nil {
-					f2f4f1.SetMetadataContent(*desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.IDp.MetadataContent)
+					f2f4f1.MetadataContent = desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.IDp.MetadataContent
 				}
-				f2f4.SetIdp(f2f4f1)
+				f2f4.Idp = f2f4f1
 			}
 			if desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.MasterBackendRole != nil {
-				f2f4.SetMasterBackendRole(*desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.MasterBackendRole)
+				f2f4.MasterBackendRole = desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.MasterBackendRole
 			}
 			if desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.MasterUserName != nil {
-				f2f4.SetMasterUserName(*desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.MasterUserName)
+				f2f4.MasterUserName = desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.MasterUserName
 			}
 			if desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.RolesKey != nil {
-				f2f4.SetRolesKey(*desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.RolesKey)
+				f2f4.RolesKey = desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.RolesKey
 			}
 			if desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.SessionTimeoutMinutes != nil {
-				f2f4.SetSessionTimeoutMinutes(*desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.SessionTimeoutMinutes)
+				f2f4.SessionTimeoutMinutes = aws.Int32(int32(*desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.SessionTimeoutMinutes))
 			}
 			if desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.SubjectKey != nil {
-				f2f4.SetSubjectKey(*desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.SubjectKey)
+				f2f4.SubjectKey = desired.ko.Spec.AdvancedSecurityOptions.SAMLOptions.SubjectKey
 			}
-			f2.SetSAMLOptions(f2f4)
+			f2.SAMLOptions = f2f4
 		}
-		res.SetAdvancedSecurityOptions(f2)
+		res.AdvancedSecurityOptions = f2
 	}
 	if desired.ko.Spec.AutoTuneOptions != nil && delta.DifferentAt("Spec.AutoTuneOptions") {
-		f3 := &svcsdk.AutoTuneOptions{}
+		f3 := &svcsdktypes.AutoTuneOptions{}
 		if desired.ko.Spec.AutoTuneOptions.DesiredState != nil {
-			f3.SetDesiredState(*desired.ko.Spec.AutoTuneOptions.DesiredState)
+			f3.DesiredState = svcsdktypes.AutoTuneDesiredState(*desired.ko.Spec.AutoTuneOptions.DesiredState)
 		}
 		if desired.ko.Spec.AutoTuneOptions.MaintenanceSchedules != nil {
-			f3f1 := []*svcsdk.AutoTuneMaintenanceSchedule{}
+			f3f1 := []svcsdktypes.AutoTuneMaintenanceSchedule{}
 			for _, f3f1iter := range desired.ko.Spec.AutoTuneOptions.MaintenanceSchedules {
-				f3f1elem := &svcsdk.AutoTuneMaintenanceSchedule{}
+				f3f1elem := &svcsdktypes.AutoTuneMaintenanceSchedule{}
 				if f3f1iter.CronExpressionForRecurrence != nil {
-					f3f1elem.SetCronExpressionForRecurrence(*f3f1iter.CronExpressionForRecurrence)
+					f3f1elem.CronExpressionForRecurrence = f3f1iter.CronExpressionForRecurrence
 				}
 				if f3f1iter.Duration != nil {
-					f3f1elemf1 := &svcsdk.Duration{}
+					f3f1elemf1 := &svcsdktypes.Duration{}
 					if f3f1iter.Duration.Unit != nil {
-						f3f1elemf1.SetUnit(*f3f1iter.Duration.Unit)
+						f3f1elemf1.Unit = svcsdktypes.TimeUnit(*f3f1iter.Duration.Unit)
 					}
 					if f3f1iter.Duration.Value != nil {
-						f3f1elemf1.SetValue(*f3f1iter.Duration.Value)
+						f3f1elemf1.Value = f3f1iter.Duration.Value
 					}
-					f3f1elem.SetDuration(f3f1elemf1)
+					f3f1elem.Duration = f3f1elemf1
 				}
 				if f3f1iter.StartAt != nil {
-					f3f1elem.SetStartAt(f3f1iter.StartAt.Time)
+					f3f1elem.StartAt = &f3f1iter.StartAt.Time
 				}
-				f3f1 = append(f3f1, f3f1elem)
+				f3f1 = append(f3f1, *f3f1elem)
 			}
-			f3.SetMaintenanceSchedules(f3f1)
+			f3.MaintenanceSchedules = f3f1
 		}
-		res.SetAutoTuneOptions(f3)
+		res.AutoTuneOptions = f3
 	}
 
 	if desired.ko.Spec.ClusterConfig != nil && delta.DifferentAt("Spec.ClusterConfig") {
-		f4 := &svcsdk.ClusterConfig{}
+		f4 := &svcsdktypes.ClusterConfig{}
 		if desired.ko.Spec.ClusterConfig.ColdStorageOptions != nil {
-			f4f0 := &svcsdk.ColdStorageOptions{}
+			f4f0 := &svcsdktypes.ColdStorageOptions{}
 			if desired.ko.Spec.ClusterConfig.ColdStorageOptions.Enabled != nil {
-				f4f0.SetEnabled(*desired.ko.Spec.ClusterConfig.ColdStorageOptions.Enabled)
+				f4f0.Enabled = desired.ko.Spec.ClusterConfig.ColdStorageOptions.Enabled
 			}
-			f4.SetColdStorageOptions(f4f0)
+			f4.ColdStorageOptions = f4f0
 		}
 		if desired.ko.Spec.ClusterConfig.DedicatedMasterCount != nil {
-			f4.SetDedicatedMasterCount(*desired.ko.Spec.ClusterConfig.DedicatedMasterCount)
+			f4.DedicatedMasterCount = aws.Int32(int32(*desired.ko.Spec.ClusterConfig.DedicatedMasterCount))
 		}
 		if desired.ko.Spec.ClusterConfig.DedicatedMasterEnabled != nil {
-			f4.SetDedicatedMasterEnabled(*desired.ko.Spec.ClusterConfig.DedicatedMasterEnabled)
+			f4.DedicatedMasterEnabled = desired.ko.Spec.ClusterConfig.DedicatedMasterEnabled
 		}
 		if desired.ko.Spec.ClusterConfig.DedicatedMasterType != nil {
-			f4.SetDedicatedMasterType(*desired.ko.Spec.ClusterConfig.DedicatedMasterType)
+			f4.DedicatedMasterType = svcsdktypes.OpenSearchPartitionInstanceType(*desired.ko.Spec.ClusterConfig.DedicatedMasterType)
 		}
 		if desired.ko.Spec.ClusterConfig.InstanceCount != nil {
-			f4.SetInstanceCount(*desired.ko.Spec.ClusterConfig.InstanceCount)
+			f4.InstanceCount = aws.Int32(int32(*desired.ko.Spec.ClusterConfig.InstanceCount))
 		}
 		if desired.ko.Spec.ClusterConfig.InstanceType != nil {
-			f4.SetInstanceType(*desired.ko.Spec.ClusterConfig.InstanceType)
+			f4.InstanceType = svcsdktypes.OpenSearchPartitionInstanceType(*desired.ko.Spec.ClusterConfig.InstanceType)
 		}
 		if desired.ko.Spec.ClusterConfig.WarmCount != nil {
-			f4.SetWarmCount(*desired.ko.Spec.ClusterConfig.WarmCount)
+			f4.WarmCount = aws.Int32(int32(*desired.ko.Spec.ClusterConfig.WarmCount))
 		}
 		if desired.ko.Spec.ClusterConfig.WarmEnabled != nil {
-			f4.SetWarmEnabled(*desired.ko.Spec.ClusterConfig.WarmEnabled)
+			f4.WarmEnabled = desired.ko.Spec.ClusterConfig.WarmEnabled
 		}
 		if desired.ko.Spec.ClusterConfig.WarmType != nil {
-			f4.SetWarmType(*desired.ko.Spec.ClusterConfig.WarmType)
+			f4.WarmType = svcsdktypes.OpenSearchWarmPartitionInstanceType(*desired.ko.Spec.ClusterConfig.WarmType)
 		}
 		if desired.ko.Spec.ClusterConfig.ZoneAwarenessConfig != nil {
-			f4f9 := &svcsdk.ZoneAwarenessConfig{}
+			f4f9 := &svcsdktypes.ZoneAwarenessConfig{}
 			if desired.ko.Spec.ClusterConfig.ZoneAwarenessConfig.AvailabilityZoneCount != nil {
-				f4f9.SetAvailabilityZoneCount(*desired.ko.Spec.ClusterConfig.ZoneAwarenessConfig.AvailabilityZoneCount)
+				f4f9.AvailabilityZoneCount = aws.Int32(int32(*desired.ko.Spec.ClusterConfig.ZoneAwarenessConfig.AvailabilityZoneCount))
 			}
-			f4.SetZoneAwarenessConfig(f4f9)
+			f4.ZoneAwarenessConfig = f4f9
 		}
 		if desired.ko.Spec.ClusterConfig.ZoneAwarenessEnabled != nil {
-			f4.SetZoneAwarenessEnabled(*desired.ko.Spec.ClusterConfig.ZoneAwarenessEnabled)
+			f4.ZoneAwarenessEnabled = desired.ko.Spec.ClusterConfig.ZoneAwarenessEnabled
 		}
-		res.SetClusterConfig(f4)
+		res.ClusterConfig = f4
 	}
 
 	if desired.ko.Spec.CognitoOptions != nil && delta.DifferentAt("Spec.CognitoOptions") {
-		f5 := &svcsdk.CognitoOptions{}
+		f5 := &svcsdktypes.CognitoOptions{}
 		if desired.ko.Spec.CognitoOptions.Enabled != nil {
-			f5.SetEnabled(*desired.ko.Spec.CognitoOptions.Enabled)
+			f5.Enabled = desired.ko.Spec.CognitoOptions.Enabled
 		}
 		if desired.ko.Spec.CognitoOptions.IdentityPoolID != nil {
-			f5.SetIdentityPoolId(*desired.ko.Spec.CognitoOptions.IdentityPoolID)
+			f5.IdentityPoolId = desired.ko.Spec.CognitoOptions.IdentityPoolID
 		}
 		if desired.ko.Spec.CognitoOptions.RoleARN != nil {
-			f5.SetRoleArn(*desired.ko.Spec.CognitoOptions.RoleARN)
+			f5.RoleArn = desired.ko.Spec.CognitoOptions.RoleARN
 		}
 		if desired.ko.Spec.CognitoOptions.UserPoolID != nil {
-			f5.SetUserPoolId(*desired.ko.Spec.CognitoOptions.UserPoolID)
+			f5.UserPoolId = desired.ko.Spec.CognitoOptions.UserPoolID
 		}
-		res.SetCognitoOptions(f5)
+		res.CognitoOptions = f5
 	}
 
 	if desired.ko.Spec.DomainEndpointOptions != nil && delta.DifferentAt("Spec.DomainEndpointOptions") {
-		f6 := &svcsdk.DomainEndpointOptions{}
+		f6 := &svcsdktypes.DomainEndpointOptions{}
 		if desired.ko.Spec.DomainEndpointOptions.CustomEndpoint != nil {
-			f6.SetCustomEndpoint(*desired.ko.Spec.DomainEndpointOptions.CustomEndpoint)
+			f6.CustomEndpoint = desired.ko.Spec.DomainEndpointOptions.CustomEndpoint
 		}
 		if desired.ko.Spec.DomainEndpointOptions.CustomEndpointCertificateARN != nil {
-			f6.SetCustomEndpointCertificateArn(*desired.ko.Spec.DomainEndpointOptions.CustomEndpointCertificateARN)
+			f6.CustomEndpointCertificateArn = desired.ko.Spec.DomainEndpointOptions.CustomEndpointCertificateARN
 		}
 		if desired.ko.Spec.DomainEndpointOptions.CustomEndpointEnabled != nil {
-			f6.SetCustomEndpointEnabled(*desired.ko.Spec.DomainEndpointOptions.CustomEndpointEnabled)
+			f6.CustomEndpointEnabled = desired.ko.Spec.DomainEndpointOptions.CustomEndpointEnabled
 		}
 		if desired.ko.Spec.DomainEndpointOptions.EnforceHTTPS != nil {
-			f6.SetEnforceHTTPS(*desired.ko.Spec.DomainEndpointOptions.EnforceHTTPS)
+			f6.EnforceHTTPS = desired.ko.Spec.DomainEndpointOptions.EnforceHTTPS
 		}
 		if desired.ko.Spec.DomainEndpointOptions.TLSSecurityPolicy != nil {
-			f6.SetTLSSecurityPolicy(*desired.ko.Spec.DomainEndpointOptions.TLSSecurityPolicy)
+			f6.TLSSecurityPolicy = svcsdktypes.TLSSecurityPolicy(*desired.ko.Spec.DomainEndpointOptions.TLSSecurityPolicy)
 		}
-		res.SetDomainEndpointOptions(f6)
+		res.DomainEndpointOptions = f6
 	}
 
 	if desired.ko.Spec.EBSOptions != nil && delta.DifferentAt("Spec.EBSOptions") {
-		f8 := &svcsdk.EBSOptions{}
+		f8 := &svcsdktypes.EBSOptions{}
 		if desired.ko.Spec.EBSOptions.EBSEnabled != nil {
-			f8.SetEBSEnabled(*desired.ko.Spec.EBSOptions.EBSEnabled)
+			f8.EBSEnabled = desired.ko.Spec.EBSOptions.EBSEnabled
 		}
 		if desired.ko.Spec.EBSOptions.IOPS != nil {
-			f8.SetIops(*desired.ko.Spec.EBSOptions.IOPS)
+			f8.Iops = aws.Int32(int32(*desired.ko.Spec.EBSOptions.IOPS))
 		}
 		if desired.ko.Spec.EBSOptions.Throughput != nil {
-			f8.SetThroughput(*desired.ko.Spec.EBSOptions.Throughput)
+			f8.Throughput = aws.Int32(int32(*desired.ko.Spec.EBSOptions.Throughput))
 		}
 		if desired.ko.Spec.EBSOptions.VolumeSize != nil {
-			f8.SetVolumeSize(*desired.ko.Spec.EBSOptions.VolumeSize)
+			f8.VolumeSize = aws.Int32(int32(*desired.ko.Spec.EBSOptions.VolumeSize))
 		}
 		if desired.ko.Spec.EBSOptions.VolumeType != nil {
-			f8.SetVolumeType(*desired.ko.Spec.EBSOptions.VolumeType)
+			f8.VolumeType = svcsdktypes.VolumeType(*desired.ko.Spec.EBSOptions.VolumeType)
 		}
-		res.SetEBSOptions(f8)
+		res.EBSOptions = f8
 	}
 
 	if desired.ko.Spec.EncryptionAtRestOptions != nil && delta.DifferentAt("Spec.EncryptionAtRestOptions") {
-		f9 := &svcsdk.EncryptionAtRestOptions{}
+		f9 := &svcsdktypes.EncryptionAtRestOptions{}
 		if desired.ko.Spec.EncryptionAtRestOptions.Enabled != nil {
-			f9.SetEnabled(*desired.ko.Spec.EncryptionAtRestOptions.Enabled)
+			f9.Enabled = desired.ko.Spec.EncryptionAtRestOptions.Enabled
 		}
 		if desired.ko.Spec.EncryptionAtRestOptions.KMSKeyID != nil {
-			f9.SetKmsKeyId(*desired.ko.Spec.EncryptionAtRestOptions.KMSKeyID)
+			f9.KmsKeyId = desired.ko.Spec.EncryptionAtRestOptions.KMSKeyID
 		}
-		res.SetEncryptionAtRestOptions(f9)
+		res.EncryptionAtRestOptions = f9
 	}
 
 	if desired.ko.Spec.LogPublishingOptions != nil && delta.DifferentAt("Spec.LogPublishingOptions") {
-		f11 := map[string]*svcsdk.LogPublishingOption{}
+		f11 := map[string]svcsdktypes.LogPublishingOption{}
 		for f11key, f11valiter := range desired.ko.Spec.LogPublishingOptions {
-			f11val := &svcsdk.LogPublishingOption{}
+			f11val := &svcsdktypes.LogPublishingOption{}
 			if f11valiter.CloudWatchLogsLogGroupARN != nil {
-				f11val.SetCloudWatchLogsLogGroupArn(*f11valiter.CloudWatchLogsLogGroupARN)
+				f11val.CloudWatchLogsLogGroupArn = f11valiter.CloudWatchLogsLogGroupARN
 			}
 			if f11valiter.Enabled != nil {
-				f11val.SetEnabled(*f11valiter.Enabled)
+				f11val.Enabled = f11valiter.Enabled
 			}
-			f11[f11key] = f11val
+			f11[f11key] = *f11val
 		}
-		res.SetLogPublishingOptions(f11)
+		res.LogPublishingOptions = f11
 	}
 
 	if desired.ko.Spec.NodeToNodeEncryptionOptions != nil && delta.DifferentAt("Spec.NodeToNodeEncryptionOptions") {
-		f12 := &svcsdk.NodeToNodeEncryptionOptions{}
+		f12 := &svcsdktypes.NodeToNodeEncryptionOptions{}
 		if desired.ko.Spec.NodeToNodeEncryptionOptions.Enabled != nil {
-			f12.SetEnabled(*desired.ko.Spec.NodeToNodeEncryptionOptions.Enabled)
+			f12.Enabled = desired.ko.Spec.NodeToNodeEncryptionOptions.Enabled
 		}
-		res.SetNodeToNodeEncryptionOptions(f12)
+		res.NodeToNodeEncryptionOptions = f12
 	}
 
 	if desired.ko.Spec.VPCOptions != nil && delta.DifferentAt("Spec.VPCOptions") {
-		f14 := &svcsdk.VPCOptions{}
+		f14 := &svcsdktypes.VPCOptions{}
 		if desired.ko.Spec.VPCOptions.SecurityGroupIDs != nil {
-			f14f0 := []*string{}
+			f14f0 := []string{}
 			for _, f14f0iter := range desired.ko.Spec.VPCOptions.SecurityGroupIDs {
-				var f14f0elem string
-				f14f0elem = *f14f0iter
-				f14f0 = append(f14f0, &f14f0elem)
+				f14f0elem := *f14f0iter
+				f14f0 = append(f14f0, f14f0elem)
 			}
-			f14.SetSecurityGroupIds(f14f0)
+			f14.SecurityGroupIds = f14f0
 		}
 		if desired.ko.Spec.VPCOptions.SubnetIDs != nil {
-			f14f1 := []*string{}
+			f14f1 := []string{}
 			for _, f14f1iter := range desired.ko.Spec.VPCOptions.SubnetIDs {
-				var f14f1elem string
-				f14f1elem = *f14f1iter
-				f14f1 = append(f14f1, &f14f1elem)
+				f14f1elem := *f14f1iter
+				f14f1 = append(f14f1, f14f1elem)
 			}
-			f14.SetSubnetIds(f14f1)
+			f14.SubnetIds = f14f1
 		}
-		res.SetVPCOptions(f14)
+		res.VPCOptions = f14
 	}
 
 	return res, nil

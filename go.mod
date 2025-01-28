@@ -5,8 +5,11 @@ go 1.22.0
 toolchain go1.22.5
 
 require (
-	github.com/aws-controllers-k8s/runtime v0.41.0
+	github.com/aws-controllers-k8s/runtime v0.41.1-0.20250204215244-e48dd7b2d6d0
 	github.com/aws/aws-sdk-go v1.55.5
+	github.com/aws/aws-sdk-go-v2 v1.34.0
+	github.com/aws/aws-sdk-go-v2/service/opensearch v1.45.7
+	github.com/aws/smithy-go v1.22.2
 	github.com/go-logr/logr v1.4.2
 	github.com/spf13/pflag v1.0.5
 	k8s.io/api v0.31.0
@@ -16,6 +19,17 @@ require (
 )
 
 require (
+	github.com/aws/aws-sdk-go-v2/config v1.28.6 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.17.47 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.21 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.29 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.29 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.6 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.24.7 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.28.6 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.33.2 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 )
@@ -43,7 +57,6 @@ require (
 	github.com/itchyny/gojq v0.12.6 // indirect
 	github.com/itchyny/timefmt-go v0.1.3 // indirect
 	github.com/jaypipes/envutil v1.0.0 // indirect
-	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
