@@ -16,6 +16,7 @@ package domain
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/aws-controllers-k8s/opensearchservice-controller/apis/v1alpha1"
 	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
@@ -35,6 +36,7 @@ var (
 		errors.New("domain is currently processing changes, cannot be modified or deleted"),
 		ackrequeue.DefaultRequeueAfterDuration,
 	)
+	noAutoTuneInstances = []string{"t2", "t3"}
 )
 
 // domainProcessing returns true if the supplied domain is in a state of
@@ -44,6 +46,19 @@ func domainProcessing(r *resource) bool {
 		return false
 	}
 	return *r.ko.Status.Processing
+}
+
+// isAutoTuneSupported returns true if instance type supports AutoTune
+// https://docs.aws.amazon.com/opensearch-service/latest/developerguide/supported-instance-types.html
+func isAutoTuneSupported(r *resource) bool {
+	if r.ko.Spec.ClusterConfig != nil && r.ko.Spec.ClusterConfig.InstanceType != nil {
+		for _, v := range noAutoTuneInstances {
+			if strings.HasPrefix(*r.ko.Spec.ClusterConfig.InstanceType, v) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, latest *resource,
