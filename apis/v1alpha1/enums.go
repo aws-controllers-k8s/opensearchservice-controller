@@ -15,51 +15,74 @@
 
 package v1alpha1
 
+type AWSServicePrincipal string
+
+const (
+	AWSServicePrincipal_application_opensearchservice_amazonaws_com AWSServicePrincipal = "application.opensearchservice.amazonaws.com"
+)
+
 type ActionSeverity string
 
 const (
 	ActionSeverity_HIGH   ActionSeverity = "HIGH"
-	ActionSeverity_MEDIUM ActionSeverity = "MEDIUM"
 	ActionSeverity_LOW    ActionSeverity = "LOW"
+	ActionSeverity_MEDIUM ActionSeverity = "MEDIUM"
 )
 
 type ActionStatus string
 
 const (
-	ActionStatus_PENDING_UPDATE ActionStatus = "PENDING_UPDATE"
-	ActionStatus_IN_PROGRESS    ActionStatus = "IN_PROGRESS"
-	ActionStatus_FAILED         ActionStatus = "FAILED"
 	ActionStatus_COMPLETED      ActionStatus = "COMPLETED"
-	ActionStatus_NOT_ELIGIBLE   ActionStatus = "NOT_ELIGIBLE"
 	ActionStatus_ELIGIBLE       ActionStatus = "ELIGIBLE"
+	ActionStatus_FAILED         ActionStatus = "FAILED"
+	ActionStatus_IN_PROGRESS    ActionStatus = "IN_PROGRESS"
+	ActionStatus_NOT_ELIGIBLE   ActionStatus = "NOT_ELIGIBLE"
+	ActionStatus_PENDING_UPDATE ActionStatus = "PENDING_UPDATE"
 )
 
 type ActionType string
 
 const (
-	ActionType_SERVICE_SOFTWARE_UPDATE ActionType = "SERVICE_SOFTWARE_UPDATE"
 	ActionType_JVM_HEAP_SIZE_TUNING    ActionType = "JVM_HEAP_SIZE_TUNING"
 	ActionType_JVM_YOUNG_GEN_TUNING    ActionType = "JVM_YOUNG_GEN_TUNING"
+	ActionType_SERVICE_SOFTWARE_UPDATE ActionType = "SERVICE_SOFTWARE_UPDATE"
+)
+
+type AppConfigType string
+
+const (
+	AppConfigType_opensearchDashboards_dashboardAdmin_groups AppConfigType = "opensearchDashboards.dashboardAdmin.groups"
+	AppConfigType_opensearchDashboards_dashboardAdmin_users  AppConfigType = "opensearchDashboards.dashboardAdmin.users"
+)
+
+type ApplicationStatus string
+
+const (
+	ApplicationStatus_ACTIVE   ApplicationStatus = "ACTIVE"
+	ApplicationStatus_CREATING ApplicationStatus = "CREATING"
+	ApplicationStatus_DELETING ApplicationStatus = "DELETING"
+	ApplicationStatus_FAILED   ApplicationStatus = "FAILED"
+	ApplicationStatus_UPDATING ApplicationStatus = "UPDATING"
 )
 
 type AutoTuneDesiredState string
 
 const (
-	AutoTuneDesiredState_ENABLED  AutoTuneDesiredState = "ENABLED"
 	AutoTuneDesiredState_DISABLED AutoTuneDesiredState = "DISABLED"
+	AutoTuneDesiredState_ENABLED  AutoTuneDesiredState = "ENABLED"
 )
 
 type AutoTuneState string
 
 const (
-	AutoTuneState_ENABLED                           AutoTuneState = "ENABLED"
 	AutoTuneState_DISABLED                          AutoTuneState = "DISABLED"
-	AutoTuneState_ENABLE_IN_PROGRESS                AutoTuneState = "ENABLE_IN_PROGRESS"
-	AutoTuneState_DISABLE_IN_PROGRESS               AutoTuneState = "DISABLE_IN_PROGRESS"
-	AutoTuneState_DISABLED_AND_ROLLBACK_SCHEDULED   AutoTuneState = "DISABLED_AND_ROLLBACK_SCHEDULED"
-	AutoTuneState_DISABLED_AND_ROLLBACK_IN_PROGRESS AutoTuneState = "DISABLED_AND_ROLLBACK_IN_PROGRESS"
 	AutoTuneState_DISABLED_AND_ROLLBACK_COMPLETE    AutoTuneState = "DISABLED_AND_ROLLBACK_COMPLETE"
 	AutoTuneState_DISABLED_AND_ROLLBACK_ERROR       AutoTuneState = "DISABLED_AND_ROLLBACK_ERROR"
+	AutoTuneState_DISABLED_AND_ROLLBACK_IN_PROGRESS AutoTuneState = "DISABLED_AND_ROLLBACK_IN_PROGRESS"
+	AutoTuneState_DISABLED_AND_ROLLBACK_SCHEDULED   AutoTuneState = "DISABLED_AND_ROLLBACK_SCHEDULED"
+	AutoTuneState_DISABLE_IN_PROGRESS               AutoTuneState = "DISABLE_IN_PROGRESS"
+	AutoTuneState_ENABLED                           AutoTuneState = "ENABLED"
+	AutoTuneState_ENABLE_IN_PROGRESS                AutoTuneState = "ENABLE_IN_PROGRESS"
 	AutoTuneState_ERROR                             AutoTuneState = "ERROR"
 )
 
@@ -72,14 +95,14 @@ const (
 type ConfigChangeStatus string
 
 const (
-	ConfigChangeStatus_Pending          ConfigChangeStatus = "Pending"
+	ConfigChangeStatus_ApplyingChanges  ConfigChangeStatus = "ApplyingChanges"
+	ConfigChangeStatus_Cancelled        ConfigChangeStatus = "Cancelled"
+	ConfigChangeStatus_Completed        ConfigChangeStatus = "Completed"
 	ConfigChangeStatus_Initializing     ConfigChangeStatus = "Initializing"
+	ConfigChangeStatus_Pending          ConfigChangeStatus = "Pending"
+	ConfigChangeStatus_PendingUserInput ConfigChangeStatus = "PendingUserInput"
 	ConfigChangeStatus_Validating       ConfigChangeStatus = "Validating"
 	ConfigChangeStatus_ValidationFailed ConfigChangeStatus = "ValidationFailed"
-	ConfigChangeStatus_ApplyingChanges  ConfigChangeStatus = "ApplyingChanges"
-	ConfigChangeStatus_Completed        ConfigChangeStatus = "Completed"
-	ConfigChangeStatus_PendingUserInput ConfigChangeStatus = "PendingUserInput"
-	ConfigChangeStatus_Cancelled        ConfigChangeStatus = "Cancelled"
 )
 
 type ConnectionMode string
@@ -99,38 +122,39 @@ const (
 type DeploymentStatus string
 
 const (
-	DeploymentStatus_PENDING_UPDATE DeploymentStatus = "PENDING_UPDATE"
-	DeploymentStatus_IN_PROGRESS    DeploymentStatus = "IN_PROGRESS"
 	DeploymentStatus_COMPLETED      DeploymentStatus = "COMPLETED"
-	DeploymentStatus_NOT_ELIGIBLE   DeploymentStatus = "NOT_ELIGIBLE"
 	DeploymentStatus_ELIGIBLE       DeploymentStatus = "ELIGIBLE"
+	DeploymentStatus_IN_PROGRESS    DeploymentStatus = "IN_PROGRESS"
+	DeploymentStatus_NOT_ELIGIBLE   DeploymentStatus = "NOT_ELIGIBLE"
+	DeploymentStatus_PENDING_UPDATE DeploymentStatus = "PENDING_UPDATE"
 )
 
 type DescribePackagesFilterName string
 
 const (
+	DescribePackagesFilterName_EngineVersion DescribePackagesFilterName = "EngineVersion"
 	DescribePackagesFilterName_PackageID     DescribePackagesFilterName = "PackageID"
 	DescribePackagesFilterName_PackageName   DescribePackagesFilterName = "PackageName"
+	DescribePackagesFilterName_PackageOwner  DescribePackagesFilterName = "PackageOwner"
 	DescribePackagesFilterName_PackageStatus DescribePackagesFilterName = "PackageStatus"
 	DescribePackagesFilterName_PackageType   DescribePackagesFilterName = "PackageType"
-	DescribePackagesFilterName_EngineVersion DescribePackagesFilterName = "EngineVersion"
 )
 
 type DomainHealth string
 
 const (
-	DomainHealth_Red          DomainHealth = "Red"
-	DomainHealth_Yellow       DomainHealth = "Yellow"
 	DomainHealth_Green        DomainHealth = "Green"
 	DomainHealth_NotAvailable DomainHealth = "NotAvailable"
+	DomainHealth_Red          DomainHealth = "Red"
+	DomainHealth_Yellow       DomainHealth = "Yellow"
 )
 
 type DomainPackageStatus string
 
 const (
+	DomainPackageStatus_ACTIVE              DomainPackageStatus = "ACTIVE"
 	DomainPackageStatus_ASSOCIATING         DomainPackageStatus = "ASSOCIATING"
 	DomainPackageStatus_ASSOCIATION_FAILED  DomainPackageStatus = "ASSOCIATION_FAILED"
-	DomainPackageStatus_ACTIVE              DomainPackageStatus = "ACTIVE"
 	DomainPackageStatus_DISSOCIATING        DomainPackageStatus = "DISSOCIATING"
 	DomainPackageStatus_DISSOCIATION_FAILED DomainPackageStatus = "DISSOCIATION_FAILED"
 )
@@ -138,21 +162,21 @@ const (
 type DomainProcessingStatusType string
 
 const (
-	DomainProcessingStatusType_Creating                DomainProcessingStatusType = "Creating"
 	DomainProcessingStatusType_Active                  DomainProcessingStatusType = "Active"
-	DomainProcessingStatusType_Modifying               DomainProcessingStatusType = "Modifying"
-	DomainProcessingStatusType_UpgradingEngineVersion  DomainProcessingStatusType = "UpgradingEngineVersion"
-	DomainProcessingStatusType_UpdatingServiceSoftware DomainProcessingStatusType = "UpdatingServiceSoftware"
-	DomainProcessingStatusType_Isolated                DomainProcessingStatusType = "Isolated"
+	DomainProcessingStatusType_Creating                DomainProcessingStatusType = "Creating"
 	DomainProcessingStatusType_Deleting                DomainProcessingStatusType = "Deleting"
+	DomainProcessingStatusType_Isolated                DomainProcessingStatusType = "Isolated"
+	DomainProcessingStatusType_Modifying               DomainProcessingStatusType = "Modifying"
+	DomainProcessingStatusType_UpdatingServiceSoftware DomainProcessingStatusType = "UpdatingServiceSoftware"
+	DomainProcessingStatusType_UpgradingEngineVersion  DomainProcessingStatusType = "UpgradingEngineVersion"
 )
 
 type DomainState string
 
 const (
 	DomainState_Active       DomainState = "Active"
-	DomainState_Processing   DomainState = "Processing"
 	DomainState_NotAvailable DomainState = "NotAvailable"
+	DomainState_Processing   DomainState = "Processing"
 )
 
 type DryRunMode string
@@ -165,28 +189,28 @@ const (
 type EngineType string
 
 const (
-	EngineType_OpenSearch    EngineType = "OpenSearch"
 	EngineType_Elasticsearch EngineType = "Elasticsearch"
+	EngineType_OpenSearch    EngineType = "OpenSearch"
 )
 
 type IPAddressType string
 
 const (
-	IPAddressType_ipv4      IPAddressType = "ipv4"
 	IPAddressType_dualstack IPAddressType = "dualstack"
+	IPAddressType_ipv4      IPAddressType = "ipv4"
 )
 
 type InboundConnectionStatusCode string
 
 const (
-	InboundConnectionStatusCode_PENDING_ACCEPTANCE InboundConnectionStatusCode = "PENDING_ACCEPTANCE"
-	InboundConnectionStatusCode_APPROVED           InboundConnectionStatusCode = "APPROVED"
-	InboundConnectionStatusCode_PROVISIONING       InboundConnectionStatusCode = "PROVISIONING"
 	InboundConnectionStatusCode_ACTIVE             InboundConnectionStatusCode = "ACTIVE"
-	InboundConnectionStatusCode_REJECTING          InboundConnectionStatusCode = "REJECTING"
-	InboundConnectionStatusCode_REJECTED           InboundConnectionStatusCode = "REJECTED"
-	InboundConnectionStatusCode_DELETING           InboundConnectionStatusCode = "DELETING"
+	InboundConnectionStatusCode_APPROVED           InboundConnectionStatusCode = "APPROVED"
 	InboundConnectionStatusCode_DELETED            InboundConnectionStatusCode = "DELETED"
+	InboundConnectionStatusCode_DELETING           InboundConnectionStatusCode = "DELETING"
+	InboundConnectionStatusCode_PENDING_ACCEPTANCE InboundConnectionStatusCode = "PENDING_ACCEPTANCE"
+	InboundConnectionStatusCode_PROVISIONING       InboundConnectionStatusCode = "PROVISIONING"
+	InboundConnectionStatusCode_REJECTED           InboundConnectionStatusCode = "REJECTED"
+	InboundConnectionStatusCode_REJECTING          InboundConnectionStatusCode = "REJECTING"
 )
 
 type InitiatedBy string
@@ -199,19 +223,19 @@ const (
 type LogType string
 
 const (
+	LogType_AUDIT_LOGS          LogType = "AUDIT_LOGS"
+	LogType_ES_APPLICATION_LOGS LogType = "ES_APPLICATION_LOGS"
 	LogType_INDEX_SLOW_LOGS     LogType = "INDEX_SLOW_LOGS"
 	LogType_SEARCH_SLOW_LOGS    LogType = "SEARCH_SLOW_LOGS"
-	LogType_ES_APPLICATION_LOGS LogType = "ES_APPLICATION_LOGS"
-	LogType_AUDIT_LOGS          LogType = "AUDIT_LOGS"
 )
 
 type MaintenanceStatus string
 
 const (
-	MaintenanceStatus_PENDING     MaintenanceStatus = "PENDING"
-	MaintenanceStatus_IN_PROGRESS MaintenanceStatus = "IN_PROGRESS"
 	MaintenanceStatus_COMPLETED   MaintenanceStatus = "COMPLETED"
 	MaintenanceStatus_FAILED      MaintenanceStatus = "FAILED"
+	MaintenanceStatus_IN_PROGRESS MaintenanceStatus = "IN_PROGRESS"
+	MaintenanceStatus_PENDING     MaintenanceStatus = "PENDING"
 	MaintenanceStatus_TIMED_OUT   MaintenanceStatus = "TIMED_OUT"
 )
 
@@ -219,8 +243,8 @@ type MaintenanceType string
 
 const (
 	MaintenanceType_REBOOT_NODE            MaintenanceType = "REBOOT_NODE"
-	MaintenanceType_RESTART_SEARCH_PROCESS MaintenanceType = "RESTART_SEARCH_PROCESS"
 	MaintenanceType_RESTART_DASHBOARD      MaintenanceType = "RESTART_DASHBOARD"
+	MaintenanceType_RESTART_SEARCH_PROCESS MaintenanceType = "RESTART_SEARCH_PROCESS"
 )
 
 type MasterNodeStatus string
@@ -233,204 +257,220 @@ const (
 type NATuralLanguageQueryGenerationCurrentState string
 
 const (
-	NATuralLanguageQueryGenerationCurrentState_NOT_ENABLED         NATuralLanguageQueryGenerationCurrentState = "NOT_ENABLED"
-	NATuralLanguageQueryGenerationCurrentState_ENABLE_COMPLETE     NATuralLanguageQueryGenerationCurrentState = "ENABLE_COMPLETE"
-	NATuralLanguageQueryGenerationCurrentState_ENABLE_IN_PROGRESS  NATuralLanguageQueryGenerationCurrentState = "ENABLE_IN_PROGRESS"
-	NATuralLanguageQueryGenerationCurrentState_ENABLE_FAILED       NATuralLanguageQueryGenerationCurrentState = "ENABLE_FAILED"
 	NATuralLanguageQueryGenerationCurrentState_DISABLE_COMPLETE    NATuralLanguageQueryGenerationCurrentState = "DISABLE_COMPLETE"
-	NATuralLanguageQueryGenerationCurrentState_DISABLE_IN_PROGRESS NATuralLanguageQueryGenerationCurrentState = "DISABLE_IN_PROGRESS"
 	NATuralLanguageQueryGenerationCurrentState_DISABLE_FAILED      NATuralLanguageQueryGenerationCurrentState = "DISABLE_FAILED"
+	NATuralLanguageQueryGenerationCurrentState_DISABLE_IN_PROGRESS NATuralLanguageQueryGenerationCurrentState = "DISABLE_IN_PROGRESS"
+	NATuralLanguageQueryGenerationCurrentState_ENABLE_COMPLETE     NATuralLanguageQueryGenerationCurrentState = "ENABLE_COMPLETE"
+	NATuralLanguageQueryGenerationCurrentState_ENABLE_FAILED       NATuralLanguageQueryGenerationCurrentState = "ENABLE_FAILED"
+	NATuralLanguageQueryGenerationCurrentState_ENABLE_IN_PROGRESS  NATuralLanguageQueryGenerationCurrentState = "ENABLE_IN_PROGRESS"
+	NATuralLanguageQueryGenerationCurrentState_NOT_ENABLED         NATuralLanguageQueryGenerationCurrentState = "NOT_ENABLED"
 )
 
 type NATuralLanguageQueryGenerationDesiredState string
 
 const (
-	NATuralLanguageQueryGenerationDesiredState_ENABLED  NATuralLanguageQueryGenerationDesiredState = "ENABLED"
 	NATuralLanguageQueryGenerationDesiredState_DISABLED NATuralLanguageQueryGenerationDesiredState = "DISABLED"
+	NATuralLanguageQueryGenerationDesiredState_ENABLED  NATuralLanguageQueryGenerationDesiredState = "ENABLED"
+)
+
+type NodeOptionsNodeType string
+
+const (
+	NodeOptionsNodeType_coordinator NodeOptionsNodeType = "coordinator"
 )
 
 type NodeStatus string
 
 const (
 	NodeStatus_Active       NodeStatus = "Active"
-	NodeStatus_StandBy      NodeStatus = "StandBy"
 	NodeStatus_NotAvailable NodeStatus = "NotAvailable"
+	NodeStatus_StandBy      NodeStatus = "StandBy"
 )
 
 type NodeType string
 
 const (
 	NodeType_Data      NodeType = "Data"
-	NodeType_Ultrawarm NodeType = "Ultrawarm"
 	NodeType_Master    NodeType = "Master"
+	NodeType_Ultrawarm NodeType = "Ultrawarm"
 )
 
 type OpenSearchPartitionInstanceType string
 
 const (
-	OpenSearchPartitionInstanceType_m3_medium_search         OpenSearchPartitionInstanceType = "m3.medium.search"
-	OpenSearchPartitionInstanceType_m3_large_search          OpenSearchPartitionInstanceType = "m3.large.search"
-	OpenSearchPartitionInstanceType_m3_xlarge_search         OpenSearchPartitionInstanceType = "m3.xlarge.search"
-	OpenSearchPartitionInstanceType_m3_2xlarge_search        OpenSearchPartitionInstanceType = "m3.2xlarge.search"
-	OpenSearchPartitionInstanceType_m4_large_search          OpenSearchPartitionInstanceType = "m4.large.search"
-	OpenSearchPartitionInstanceType_m4_xlarge_search         OpenSearchPartitionInstanceType = "m4.xlarge.search"
-	OpenSearchPartitionInstanceType_m4_2xlarge_search        OpenSearchPartitionInstanceType = "m4.2xlarge.search"
-	OpenSearchPartitionInstanceType_m4_4xlarge_search        OpenSearchPartitionInstanceType = "m4.4xlarge.search"
-	OpenSearchPartitionInstanceType_m4_10xlarge_search       OpenSearchPartitionInstanceType = "m4.10xlarge.search"
-	OpenSearchPartitionInstanceType_m5_large_search          OpenSearchPartitionInstanceType = "m5.large.search"
-	OpenSearchPartitionInstanceType_m5_xlarge_search         OpenSearchPartitionInstanceType = "m5.xlarge.search"
-	OpenSearchPartitionInstanceType_m5_2xlarge_search        OpenSearchPartitionInstanceType = "m5.2xlarge.search"
-	OpenSearchPartitionInstanceType_m5_4xlarge_search        OpenSearchPartitionInstanceType = "m5.4xlarge.search"
-	OpenSearchPartitionInstanceType_m5_12xlarge_search       OpenSearchPartitionInstanceType = "m5.12xlarge.search"
-	OpenSearchPartitionInstanceType_m5_24xlarge_search       OpenSearchPartitionInstanceType = "m5.24xlarge.search"
-	OpenSearchPartitionInstanceType_r5_large_search          OpenSearchPartitionInstanceType = "r5.large.search"
-	OpenSearchPartitionInstanceType_r5_xlarge_search         OpenSearchPartitionInstanceType = "r5.xlarge.search"
-	OpenSearchPartitionInstanceType_r5_2xlarge_search        OpenSearchPartitionInstanceType = "r5.2xlarge.search"
-	OpenSearchPartitionInstanceType_r5_4xlarge_search        OpenSearchPartitionInstanceType = "r5.4xlarge.search"
-	OpenSearchPartitionInstanceType_r5_12xlarge_search       OpenSearchPartitionInstanceType = "r5.12xlarge.search"
-	OpenSearchPartitionInstanceType_r5_24xlarge_search       OpenSearchPartitionInstanceType = "r5.24xlarge.search"
-	OpenSearchPartitionInstanceType_c5_large_search          OpenSearchPartitionInstanceType = "c5.large.search"
-	OpenSearchPartitionInstanceType_c5_xlarge_search         OpenSearchPartitionInstanceType = "c5.xlarge.search"
-	OpenSearchPartitionInstanceType_c5_2xlarge_search        OpenSearchPartitionInstanceType = "c5.2xlarge.search"
-	OpenSearchPartitionInstanceType_c5_4xlarge_search        OpenSearchPartitionInstanceType = "c5.4xlarge.search"
-	OpenSearchPartitionInstanceType_c5_9xlarge_search        OpenSearchPartitionInstanceType = "c5.9xlarge.search"
-	OpenSearchPartitionInstanceType_c5_18xlarge_search       OpenSearchPartitionInstanceType = "c5.18xlarge.search"
-	OpenSearchPartitionInstanceType_t3_nano_search           OpenSearchPartitionInstanceType = "t3.nano.search"
-	OpenSearchPartitionInstanceType_t3_micro_search          OpenSearchPartitionInstanceType = "t3.micro.search"
-	OpenSearchPartitionInstanceType_t3_small_search          OpenSearchPartitionInstanceType = "t3.small.search"
-	OpenSearchPartitionInstanceType_t3_medium_search         OpenSearchPartitionInstanceType = "t3.medium.search"
-	OpenSearchPartitionInstanceType_t3_large_search          OpenSearchPartitionInstanceType = "t3.large.search"
-	OpenSearchPartitionInstanceType_t3_xlarge_search         OpenSearchPartitionInstanceType = "t3.xlarge.search"
-	OpenSearchPartitionInstanceType_t3_2xlarge_search        OpenSearchPartitionInstanceType = "t3.2xlarge.search"
-	OpenSearchPartitionInstanceType_or1_medium_search        OpenSearchPartitionInstanceType = "or1.medium.search"
-	OpenSearchPartitionInstanceType_or1_large_search         OpenSearchPartitionInstanceType = "or1.large.search"
-	OpenSearchPartitionInstanceType_or1_xlarge_search        OpenSearchPartitionInstanceType = "or1.xlarge.search"
-	OpenSearchPartitionInstanceType_or1_2xlarge_search       OpenSearchPartitionInstanceType = "or1.2xlarge.search"
-	OpenSearchPartitionInstanceType_or1_4xlarge_search       OpenSearchPartitionInstanceType = "or1.4xlarge.search"
-	OpenSearchPartitionInstanceType_or1_8xlarge_search       OpenSearchPartitionInstanceType = "or1.8xlarge.search"
-	OpenSearchPartitionInstanceType_or1_12xlarge_search      OpenSearchPartitionInstanceType = "or1.12xlarge.search"
-	OpenSearchPartitionInstanceType_or1_16xlarge_search      OpenSearchPartitionInstanceType = "or1.16xlarge.search"
-	OpenSearchPartitionInstanceType_ultrawarm1_medium_search OpenSearchPartitionInstanceType = "ultrawarm1.medium.search"
-	OpenSearchPartitionInstanceType_ultrawarm1_large_search  OpenSearchPartitionInstanceType = "ultrawarm1.large.search"
-	OpenSearchPartitionInstanceType_ultrawarm1_xlarge_search OpenSearchPartitionInstanceType = "ultrawarm1.xlarge.search"
-	OpenSearchPartitionInstanceType_t2_micro_search          OpenSearchPartitionInstanceType = "t2.micro.search"
-	OpenSearchPartitionInstanceType_t2_small_search          OpenSearchPartitionInstanceType = "t2.small.search"
-	OpenSearchPartitionInstanceType_t2_medium_search         OpenSearchPartitionInstanceType = "t2.medium.search"
-	OpenSearchPartitionInstanceType_r3_large_search          OpenSearchPartitionInstanceType = "r3.large.search"
-	OpenSearchPartitionInstanceType_r3_xlarge_search         OpenSearchPartitionInstanceType = "r3.xlarge.search"
-	OpenSearchPartitionInstanceType_r3_2xlarge_search        OpenSearchPartitionInstanceType = "r3.2xlarge.search"
-	OpenSearchPartitionInstanceType_r3_4xlarge_search        OpenSearchPartitionInstanceType = "r3.4xlarge.search"
-	OpenSearchPartitionInstanceType_r3_8xlarge_search        OpenSearchPartitionInstanceType = "r3.8xlarge.search"
-	OpenSearchPartitionInstanceType_i2_xlarge_search         OpenSearchPartitionInstanceType = "i2.xlarge.search"
-	OpenSearchPartitionInstanceType_i2_2xlarge_search        OpenSearchPartitionInstanceType = "i2.2xlarge.search"
-	OpenSearchPartitionInstanceType_d2_xlarge_search         OpenSearchPartitionInstanceType = "d2.xlarge.search"
-	OpenSearchPartitionInstanceType_d2_2xlarge_search        OpenSearchPartitionInstanceType = "d2.2xlarge.search"
-	OpenSearchPartitionInstanceType_d2_4xlarge_search        OpenSearchPartitionInstanceType = "d2.4xlarge.search"
-	OpenSearchPartitionInstanceType_d2_8xlarge_search        OpenSearchPartitionInstanceType = "d2.8xlarge.search"
-	OpenSearchPartitionInstanceType_c4_large_search          OpenSearchPartitionInstanceType = "c4.large.search"
-	OpenSearchPartitionInstanceType_c4_xlarge_search         OpenSearchPartitionInstanceType = "c4.xlarge.search"
 	OpenSearchPartitionInstanceType_c4_2xlarge_search        OpenSearchPartitionInstanceType = "c4.2xlarge.search"
 	OpenSearchPartitionInstanceType_c4_4xlarge_search        OpenSearchPartitionInstanceType = "c4.4xlarge.search"
 	OpenSearchPartitionInstanceType_c4_8xlarge_search        OpenSearchPartitionInstanceType = "c4.8xlarge.search"
-	OpenSearchPartitionInstanceType_r4_large_search          OpenSearchPartitionInstanceType = "r4.large.search"
-	OpenSearchPartitionInstanceType_r4_xlarge_search         OpenSearchPartitionInstanceType = "r4.xlarge.search"
-	OpenSearchPartitionInstanceType_r4_2xlarge_search        OpenSearchPartitionInstanceType = "r4.2xlarge.search"
-	OpenSearchPartitionInstanceType_r4_4xlarge_search        OpenSearchPartitionInstanceType = "r4.4xlarge.search"
-	OpenSearchPartitionInstanceType_r4_8xlarge_search        OpenSearchPartitionInstanceType = "r4.8xlarge.search"
-	OpenSearchPartitionInstanceType_r4_16xlarge_search       OpenSearchPartitionInstanceType = "r4.16xlarge.search"
-	OpenSearchPartitionInstanceType_i3_large_search          OpenSearchPartitionInstanceType = "i3.large.search"
-	OpenSearchPartitionInstanceType_i3_xlarge_search         OpenSearchPartitionInstanceType = "i3.xlarge.search"
-	OpenSearchPartitionInstanceType_i3_2xlarge_search        OpenSearchPartitionInstanceType = "i3.2xlarge.search"
-	OpenSearchPartitionInstanceType_i3_4xlarge_search        OpenSearchPartitionInstanceType = "i3.4xlarge.search"
-	OpenSearchPartitionInstanceType_i3_8xlarge_search        OpenSearchPartitionInstanceType = "i3.8xlarge.search"
-	OpenSearchPartitionInstanceType_i3_16xlarge_search       OpenSearchPartitionInstanceType = "i3.16xlarge.search"
-	OpenSearchPartitionInstanceType_r6g_large_search         OpenSearchPartitionInstanceType = "r6g.large.search"
-	OpenSearchPartitionInstanceType_r6g_xlarge_search        OpenSearchPartitionInstanceType = "r6g.xlarge.search"
-	OpenSearchPartitionInstanceType_r6g_2xlarge_search       OpenSearchPartitionInstanceType = "r6g.2xlarge.search"
-	OpenSearchPartitionInstanceType_r6g_4xlarge_search       OpenSearchPartitionInstanceType = "r6g.4xlarge.search"
-	OpenSearchPartitionInstanceType_r6g_8xlarge_search       OpenSearchPartitionInstanceType = "r6g.8xlarge.search"
-	OpenSearchPartitionInstanceType_r6g_12xlarge_search      OpenSearchPartitionInstanceType = "r6g.12xlarge.search"
-	OpenSearchPartitionInstanceType_m6g_large_search         OpenSearchPartitionInstanceType = "m6g.large.search"
-	OpenSearchPartitionInstanceType_m6g_xlarge_search        OpenSearchPartitionInstanceType = "m6g.xlarge.search"
-	OpenSearchPartitionInstanceType_m6g_2xlarge_search       OpenSearchPartitionInstanceType = "m6g.2xlarge.search"
-	OpenSearchPartitionInstanceType_m6g_4xlarge_search       OpenSearchPartitionInstanceType = "m6g.4xlarge.search"
-	OpenSearchPartitionInstanceType_m6g_8xlarge_search       OpenSearchPartitionInstanceType = "m6g.8xlarge.search"
-	OpenSearchPartitionInstanceType_m6g_12xlarge_search      OpenSearchPartitionInstanceType = "m6g.12xlarge.search"
-	OpenSearchPartitionInstanceType_c6g_large_search         OpenSearchPartitionInstanceType = "c6g.large.search"
-	OpenSearchPartitionInstanceType_c6g_xlarge_search        OpenSearchPartitionInstanceType = "c6g.xlarge.search"
+	OpenSearchPartitionInstanceType_c4_large_search          OpenSearchPartitionInstanceType = "c4.large.search"
+	OpenSearchPartitionInstanceType_c4_xlarge_search         OpenSearchPartitionInstanceType = "c4.xlarge.search"
+	OpenSearchPartitionInstanceType_c5_18xlarge_search       OpenSearchPartitionInstanceType = "c5.18xlarge.search"
+	OpenSearchPartitionInstanceType_c5_2xlarge_search        OpenSearchPartitionInstanceType = "c5.2xlarge.search"
+	OpenSearchPartitionInstanceType_c5_4xlarge_search        OpenSearchPartitionInstanceType = "c5.4xlarge.search"
+	OpenSearchPartitionInstanceType_c5_9xlarge_search        OpenSearchPartitionInstanceType = "c5.9xlarge.search"
+	OpenSearchPartitionInstanceType_c5_large_search          OpenSearchPartitionInstanceType = "c5.large.search"
+	OpenSearchPartitionInstanceType_c5_xlarge_search         OpenSearchPartitionInstanceType = "c5.xlarge.search"
+	OpenSearchPartitionInstanceType_c6g_12xlarge_search      OpenSearchPartitionInstanceType = "c6g.12xlarge.search"
 	OpenSearchPartitionInstanceType_c6g_2xlarge_search       OpenSearchPartitionInstanceType = "c6g.2xlarge.search"
 	OpenSearchPartitionInstanceType_c6g_4xlarge_search       OpenSearchPartitionInstanceType = "c6g.4xlarge.search"
 	OpenSearchPartitionInstanceType_c6g_8xlarge_search       OpenSearchPartitionInstanceType = "c6g.8xlarge.search"
-	OpenSearchPartitionInstanceType_c6g_12xlarge_search      OpenSearchPartitionInstanceType = "c6g.12xlarge.search"
-	OpenSearchPartitionInstanceType_r6gd_large_search        OpenSearchPartitionInstanceType = "r6gd.large.search"
-	OpenSearchPartitionInstanceType_r6gd_xlarge_search       OpenSearchPartitionInstanceType = "r6gd.xlarge.search"
+	OpenSearchPartitionInstanceType_c6g_large_search         OpenSearchPartitionInstanceType = "c6g.large.search"
+	OpenSearchPartitionInstanceType_c6g_xlarge_search        OpenSearchPartitionInstanceType = "c6g.xlarge.search"
+	OpenSearchPartitionInstanceType_d2_2xlarge_search        OpenSearchPartitionInstanceType = "d2.2xlarge.search"
+	OpenSearchPartitionInstanceType_d2_4xlarge_search        OpenSearchPartitionInstanceType = "d2.4xlarge.search"
+	OpenSearchPartitionInstanceType_d2_8xlarge_search        OpenSearchPartitionInstanceType = "d2.8xlarge.search"
+	OpenSearchPartitionInstanceType_d2_xlarge_search         OpenSearchPartitionInstanceType = "d2.xlarge.search"
+	OpenSearchPartitionInstanceType_i2_2xlarge_search        OpenSearchPartitionInstanceType = "i2.2xlarge.search"
+	OpenSearchPartitionInstanceType_i2_xlarge_search         OpenSearchPartitionInstanceType = "i2.xlarge.search"
+	OpenSearchPartitionInstanceType_i3_16xlarge_search       OpenSearchPartitionInstanceType = "i3.16xlarge.search"
+	OpenSearchPartitionInstanceType_i3_2xlarge_search        OpenSearchPartitionInstanceType = "i3.2xlarge.search"
+	OpenSearchPartitionInstanceType_i3_4xlarge_search        OpenSearchPartitionInstanceType = "i3.4xlarge.search"
+	OpenSearchPartitionInstanceType_i3_8xlarge_search        OpenSearchPartitionInstanceType = "i3.8xlarge.search"
+	OpenSearchPartitionInstanceType_i3_large_search          OpenSearchPartitionInstanceType = "i3.large.search"
+	OpenSearchPartitionInstanceType_i3_xlarge_search         OpenSearchPartitionInstanceType = "i3.xlarge.search"
+	OpenSearchPartitionInstanceType_m3_2xlarge_search        OpenSearchPartitionInstanceType = "m3.2xlarge.search"
+	OpenSearchPartitionInstanceType_m3_large_search          OpenSearchPartitionInstanceType = "m3.large.search"
+	OpenSearchPartitionInstanceType_m3_medium_search         OpenSearchPartitionInstanceType = "m3.medium.search"
+	OpenSearchPartitionInstanceType_m3_xlarge_search         OpenSearchPartitionInstanceType = "m3.xlarge.search"
+	OpenSearchPartitionInstanceType_m4_10xlarge_search       OpenSearchPartitionInstanceType = "m4.10xlarge.search"
+	OpenSearchPartitionInstanceType_m4_2xlarge_search        OpenSearchPartitionInstanceType = "m4.2xlarge.search"
+	OpenSearchPartitionInstanceType_m4_4xlarge_search        OpenSearchPartitionInstanceType = "m4.4xlarge.search"
+	OpenSearchPartitionInstanceType_m4_large_search          OpenSearchPartitionInstanceType = "m4.large.search"
+	OpenSearchPartitionInstanceType_m4_xlarge_search         OpenSearchPartitionInstanceType = "m4.xlarge.search"
+	OpenSearchPartitionInstanceType_m5_12xlarge_search       OpenSearchPartitionInstanceType = "m5.12xlarge.search"
+	OpenSearchPartitionInstanceType_m5_24xlarge_search       OpenSearchPartitionInstanceType = "m5.24xlarge.search"
+	OpenSearchPartitionInstanceType_m5_2xlarge_search        OpenSearchPartitionInstanceType = "m5.2xlarge.search"
+	OpenSearchPartitionInstanceType_m5_4xlarge_search        OpenSearchPartitionInstanceType = "m5.4xlarge.search"
+	OpenSearchPartitionInstanceType_m5_large_search          OpenSearchPartitionInstanceType = "m5.large.search"
+	OpenSearchPartitionInstanceType_m5_xlarge_search         OpenSearchPartitionInstanceType = "m5.xlarge.search"
+	OpenSearchPartitionInstanceType_m6g_12xlarge_search      OpenSearchPartitionInstanceType = "m6g.12xlarge.search"
+	OpenSearchPartitionInstanceType_m6g_2xlarge_search       OpenSearchPartitionInstanceType = "m6g.2xlarge.search"
+	OpenSearchPartitionInstanceType_m6g_4xlarge_search       OpenSearchPartitionInstanceType = "m6g.4xlarge.search"
+	OpenSearchPartitionInstanceType_m6g_8xlarge_search       OpenSearchPartitionInstanceType = "m6g.8xlarge.search"
+	OpenSearchPartitionInstanceType_m6g_large_search         OpenSearchPartitionInstanceType = "m6g.large.search"
+	OpenSearchPartitionInstanceType_m6g_xlarge_search        OpenSearchPartitionInstanceType = "m6g.xlarge.search"
+	OpenSearchPartitionInstanceType_or1_12xlarge_search      OpenSearchPartitionInstanceType = "or1.12xlarge.search"
+	OpenSearchPartitionInstanceType_or1_16xlarge_search      OpenSearchPartitionInstanceType = "or1.16xlarge.search"
+	OpenSearchPartitionInstanceType_or1_2xlarge_search       OpenSearchPartitionInstanceType = "or1.2xlarge.search"
+	OpenSearchPartitionInstanceType_or1_4xlarge_search       OpenSearchPartitionInstanceType = "or1.4xlarge.search"
+	OpenSearchPartitionInstanceType_or1_8xlarge_search       OpenSearchPartitionInstanceType = "or1.8xlarge.search"
+	OpenSearchPartitionInstanceType_or1_large_search         OpenSearchPartitionInstanceType = "or1.large.search"
+	OpenSearchPartitionInstanceType_or1_medium_search        OpenSearchPartitionInstanceType = "or1.medium.search"
+	OpenSearchPartitionInstanceType_or1_xlarge_search        OpenSearchPartitionInstanceType = "or1.xlarge.search"
+	OpenSearchPartitionInstanceType_r3_2xlarge_search        OpenSearchPartitionInstanceType = "r3.2xlarge.search"
+	OpenSearchPartitionInstanceType_r3_4xlarge_search        OpenSearchPartitionInstanceType = "r3.4xlarge.search"
+	OpenSearchPartitionInstanceType_r3_8xlarge_search        OpenSearchPartitionInstanceType = "r3.8xlarge.search"
+	OpenSearchPartitionInstanceType_r3_large_search          OpenSearchPartitionInstanceType = "r3.large.search"
+	OpenSearchPartitionInstanceType_r3_xlarge_search         OpenSearchPartitionInstanceType = "r3.xlarge.search"
+	OpenSearchPartitionInstanceType_r4_16xlarge_search       OpenSearchPartitionInstanceType = "r4.16xlarge.search"
+	OpenSearchPartitionInstanceType_r4_2xlarge_search        OpenSearchPartitionInstanceType = "r4.2xlarge.search"
+	OpenSearchPartitionInstanceType_r4_4xlarge_search        OpenSearchPartitionInstanceType = "r4.4xlarge.search"
+	OpenSearchPartitionInstanceType_r4_8xlarge_search        OpenSearchPartitionInstanceType = "r4.8xlarge.search"
+	OpenSearchPartitionInstanceType_r4_large_search          OpenSearchPartitionInstanceType = "r4.large.search"
+	OpenSearchPartitionInstanceType_r4_xlarge_search         OpenSearchPartitionInstanceType = "r4.xlarge.search"
+	OpenSearchPartitionInstanceType_r5_12xlarge_search       OpenSearchPartitionInstanceType = "r5.12xlarge.search"
+	OpenSearchPartitionInstanceType_r5_24xlarge_search       OpenSearchPartitionInstanceType = "r5.24xlarge.search"
+	OpenSearchPartitionInstanceType_r5_2xlarge_search        OpenSearchPartitionInstanceType = "r5.2xlarge.search"
+	OpenSearchPartitionInstanceType_r5_4xlarge_search        OpenSearchPartitionInstanceType = "r5.4xlarge.search"
+	OpenSearchPartitionInstanceType_r5_large_search          OpenSearchPartitionInstanceType = "r5.large.search"
+	OpenSearchPartitionInstanceType_r5_xlarge_search         OpenSearchPartitionInstanceType = "r5.xlarge.search"
+	OpenSearchPartitionInstanceType_r6g_12xlarge_search      OpenSearchPartitionInstanceType = "r6g.12xlarge.search"
+	OpenSearchPartitionInstanceType_r6g_2xlarge_search       OpenSearchPartitionInstanceType = "r6g.2xlarge.search"
+	OpenSearchPartitionInstanceType_r6g_4xlarge_search       OpenSearchPartitionInstanceType = "r6g.4xlarge.search"
+	OpenSearchPartitionInstanceType_r6g_8xlarge_search       OpenSearchPartitionInstanceType = "r6g.8xlarge.search"
+	OpenSearchPartitionInstanceType_r6g_large_search         OpenSearchPartitionInstanceType = "r6g.large.search"
+	OpenSearchPartitionInstanceType_r6g_xlarge_search        OpenSearchPartitionInstanceType = "r6g.xlarge.search"
+	OpenSearchPartitionInstanceType_r6gd_12xlarge_search     OpenSearchPartitionInstanceType = "r6gd.12xlarge.search"
+	OpenSearchPartitionInstanceType_r6gd_16xlarge_search     OpenSearchPartitionInstanceType = "r6gd.16xlarge.search"
 	OpenSearchPartitionInstanceType_r6gd_2xlarge_search      OpenSearchPartitionInstanceType = "r6gd.2xlarge.search"
 	OpenSearchPartitionInstanceType_r6gd_4xlarge_search      OpenSearchPartitionInstanceType = "r6gd.4xlarge.search"
 	OpenSearchPartitionInstanceType_r6gd_8xlarge_search      OpenSearchPartitionInstanceType = "r6gd.8xlarge.search"
-	OpenSearchPartitionInstanceType_r6gd_12xlarge_search     OpenSearchPartitionInstanceType = "r6gd.12xlarge.search"
-	OpenSearchPartitionInstanceType_r6gd_16xlarge_search     OpenSearchPartitionInstanceType = "r6gd.16xlarge.search"
-	OpenSearchPartitionInstanceType_t4g_small_search         OpenSearchPartitionInstanceType = "t4g.small.search"
+	OpenSearchPartitionInstanceType_r6gd_large_search        OpenSearchPartitionInstanceType = "r6gd.large.search"
+	OpenSearchPartitionInstanceType_r6gd_xlarge_search       OpenSearchPartitionInstanceType = "r6gd.xlarge.search"
+	OpenSearchPartitionInstanceType_t2_medium_search         OpenSearchPartitionInstanceType = "t2.medium.search"
+	OpenSearchPartitionInstanceType_t2_micro_search          OpenSearchPartitionInstanceType = "t2.micro.search"
+	OpenSearchPartitionInstanceType_t2_small_search          OpenSearchPartitionInstanceType = "t2.small.search"
+	OpenSearchPartitionInstanceType_t3_2xlarge_search        OpenSearchPartitionInstanceType = "t3.2xlarge.search"
+	OpenSearchPartitionInstanceType_t3_large_search          OpenSearchPartitionInstanceType = "t3.large.search"
+	OpenSearchPartitionInstanceType_t3_medium_search         OpenSearchPartitionInstanceType = "t3.medium.search"
+	OpenSearchPartitionInstanceType_t3_micro_search          OpenSearchPartitionInstanceType = "t3.micro.search"
+	OpenSearchPartitionInstanceType_t3_nano_search           OpenSearchPartitionInstanceType = "t3.nano.search"
+	OpenSearchPartitionInstanceType_t3_small_search          OpenSearchPartitionInstanceType = "t3.small.search"
+	OpenSearchPartitionInstanceType_t3_xlarge_search         OpenSearchPartitionInstanceType = "t3.xlarge.search"
 	OpenSearchPartitionInstanceType_t4g_medium_search        OpenSearchPartitionInstanceType = "t4g.medium.search"
+	OpenSearchPartitionInstanceType_t4g_small_search         OpenSearchPartitionInstanceType = "t4g.small.search"
+	OpenSearchPartitionInstanceType_ultrawarm1_large_search  OpenSearchPartitionInstanceType = "ultrawarm1.large.search"
+	OpenSearchPartitionInstanceType_ultrawarm1_medium_search OpenSearchPartitionInstanceType = "ultrawarm1.medium.search"
+	OpenSearchPartitionInstanceType_ultrawarm1_xlarge_search OpenSearchPartitionInstanceType = "ultrawarm1.xlarge.search"
 )
 
 type OpenSearchWarmPartitionInstanceType string
 
 const (
-	OpenSearchWarmPartitionInstanceType_ultrawarm1_medium_search OpenSearchWarmPartitionInstanceType = "ultrawarm1.medium.search"
 	OpenSearchWarmPartitionInstanceType_ultrawarm1_large_search  OpenSearchWarmPartitionInstanceType = "ultrawarm1.large.search"
+	OpenSearchWarmPartitionInstanceType_ultrawarm1_medium_search OpenSearchWarmPartitionInstanceType = "ultrawarm1.medium.search"
 	OpenSearchWarmPartitionInstanceType_ultrawarm1_xlarge_search OpenSearchWarmPartitionInstanceType = "ultrawarm1.xlarge.search"
 )
 
 type OptionState string
 
 const (
-	OptionState_RequiresIndexDocuments OptionState = "RequiresIndexDocuments"
-	OptionState_Processing             OptionState = "Processing"
 	OptionState_Active                 OptionState = "Active"
+	OptionState_Processing             OptionState = "Processing"
+	OptionState_RequiresIndexDocuments OptionState = "RequiresIndexDocuments"
 )
 
 type OutboundConnectionStatusCode string
 
 const (
+	OutboundConnectionStatusCode_ACTIVE             OutboundConnectionStatusCode = "ACTIVE"
+	OutboundConnectionStatusCode_APPROVED           OutboundConnectionStatusCode = "APPROVED"
+	OutboundConnectionStatusCode_DELETED            OutboundConnectionStatusCode = "DELETED"
+	OutboundConnectionStatusCode_DELETING           OutboundConnectionStatusCode = "DELETING"
+	OutboundConnectionStatusCode_PENDING_ACCEPTANCE OutboundConnectionStatusCode = "PENDING_ACCEPTANCE"
+	OutboundConnectionStatusCode_PROVISIONING       OutboundConnectionStatusCode = "PROVISIONING"
+	OutboundConnectionStatusCode_REJECTED           OutboundConnectionStatusCode = "REJECTED"
+	OutboundConnectionStatusCode_REJECTING          OutboundConnectionStatusCode = "REJECTING"
 	OutboundConnectionStatusCode_VALIDATING         OutboundConnectionStatusCode = "VALIDATING"
 	OutboundConnectionStatusCode_VALIDATION_FAILED  OutboundConnectionStatusCode = "VALIDATION_FAILED"
-	OutboundConnectionStatusCode_PENDING_ACCEPTANCE OutboundConnectionStatusCode = "PENDING_ACCEPTANCE"
-	OutboundConnectionStatusCode_APPROVED           OutboundConnectionStatusCode = "APPROVED"
-	OutboundConnectionStatusCode_PROVISIONING       OutboundConnectionStatusCode = "PROVISIONING"
-	OutboundConnectionStatusCode_ACTIVE             OutboundConnectionStatusCode = "ACTIVE"
-	OutboundConnectionStatusCode_REJECTING          OutboundConnectionStatusCode = "REJECTING"
-	OutboundConnectionStatusCode_REJECTED           OutboundConnectionStatusCode = "REJECTED"
-	OutboundConnectionStatusCode_DELETING           OutboundConnectionStatusCode = "DELETING"
-	OutboundConnectionStatusCode_DELETED            OutboundConnectionStatusCode = "DELETED"
 )
 
 type OverallChangeStatus string
 
 const (
-	OverallChangeStatus_PENDING    OverallChangeStatus = "PENDING"
-	OverallChangeStatus_PROCESSING OverallChangeStatus = "PROCESSING"
 	OverallChangeStatus_COMPLETED  OverallChangeStatus = "COMPLETED"
 	OverallChangeStatus_FAILED     OverallChangeStatus = "FAILED"
+	OverallChangeStatus_PENDING    OverallChangeStatus = "PENDING"
+	OverallChangeStatus_PROCESSING OverallChangeStatus = "PROCESSING"
+)
+
+type PackageScopeOperationEnum string
+
+const (
+	PackageScopeOperationEnum_ADD      PackageScopeOperationEnum = "ADD"
+	PackageScopeOperationEnum_OVERRIDE PackageScopeOperationEnum = "OVERRIDE"
+	PackageScopeOperationEnum_REMOVE   PackageScopeOperationEnum = "REMOVE"
 )
 
 type PackageStatus string
 
 const (
+	PackageStatus_AVAILABLE         PackageStatus = "AVAILABLE"
 	PackageStatus_COPYING           PackageStatus = "COPYING"
 	PackageStatus_COPY_FAILED       PackageStatus = "COPY_FAILED"
-	PackageStatus_VALIDATING        PackageStatus = "VALIDATING"
-	PackageStatus_VALIDATION_FAILED PackageStatus = "VALIDATION_FAILED"
-	PackageStatus_AVAILABLE         PackageStatus = "AVAILABLE"
-	PackageStatus_DELETING          PackageStatus = "DELETING"
 	PackageStatus_DELETED           PackageStatus = "DELETED"
 	PackageStatus_DELETE_FAILED     PackageStatus = "DELETE_FAILED"
+	PackageStatus_DELETING          PackageStatus = "DELETING"
+	PackageStatus_VALIDATING        PackageStatus = "VALIDATING"
+	PackageStatus_VALIDATION_FAILED PackageStatus = "VALIDATION_FAILED"
 )
 
 type PackageType string
 
 const (
-	PackageType_TXT_DICTIONARY PackageType = "TXT-DICTIONARY"
-	PackageType_ZIP_PLUGIN     PackageType = "ZIP-PLUGIN"
+	PackageType_PACKAGE_CONFIG  PackageType = "PACKAGE-CONFIG"
+	PackageType_PACKAGE_LICENSE PackageType = "PACKAGE-LICENSE"
+	PackageType_TXT_DICTIONARY  PackageType = "TXT-DICTIONARY"
+	PackageType_ZIP_PLUGIN      PackageType = "ZIP-PLUGIN"
 )
 
 type PrincipalType string
@@ -447,27 +487,42 @@ const (
 	PropertyValueType_STRINGIFIED_JSON PropertyValueType = "STRINGIFIED_JSON"
 )
 
+type RequirementLevel string
+
+const (
+	RequirementLevel_NONE     RequirementLevel = "NONE"
+	RequirementLevel_OPTIONAL RequirementLevel = "OPTIONAL"
+	RequirementLevel_REQUIRED RequirementLevel = "REQUIRED"
+)
+
 type ReservedInstancePaymentOption string
 
 const (
 	ReservedInstancePaymentOption_ALL_UPFRONT     ReservedInstancePaymentOption = "ALL_UPFRONT"
-	ReservedInstancePaymentOption_PARTIAL_UPFRONT ReservedInstancePaymentOption = "PARTIAL_UPFRONT"
 	ReservedInstancePaymentOption_NO_UPFRONT      ReservedInstancePaymentOption = "NO_UPFRONT"
+	ReservedInstancePaymentOption_PARTIAL_UPFRONT ReservedInstancePaymentOption = "PARTIAL_UPFRONT"
+)
+
+type RolesKeyIDCOption string
+
+const (
+	RolesKeyIDCOption_GroupId   RolesKeyIDCOption = "GroupId"
+	RolesKeyIDCOption_GroupName RolesKeyIDCOption = "GroupName"
 )
 
 type RollbackOnDisable string
 
 const (
-	RollbackOnDisable_NO_ROLLBACK      RollbackOnDisable = "NO_ROLLBACK"
 	RollbackOnDisable_DEFAULT_ROLLBACK RollbackOnDisable = "DEFAULT_ROLLBACK"
+	RollbackOnDisable_NO_ROLLBACK      RollbackOnDisable = "NO_ROLLBACK"
 )
 
 type ScheduleAt string
 
 const (
 	ScheduleAt_NOW             ScheduleAt = "NOW"
-	ScheduleAt_TIMESTAMP       ScheduleAt = "TIMESTAMP"
 	ScheduleAt_OFF_PEAK_WINDOW ScheduleAt = "OFF_PEAK_WINDOW"
+	ScheduleAt_TIMESTAMP       ScheduleAt = "TIMESTAMP"
 )
 
 type ScheduledAutoTuneActionType string
@@ -480,9 +535,9 @@ const (
 type ScheduledAutoTuneSeverityType string
 
 const (
+	ScheduledAutoTuneSeverityType_HIGH   ScheduledAutoTuneSeverityType = "HIGH"
 	ScheduledAutoTuneSeverityType_LOW    ScheduledAutoTuneSeverityType = "LOW"
 	ScheduledAutoTuneSeverityType_MEDIUM ScheduledAutoTuneSeverityType = "MEDIUM"
-	ScheduledAutoTuneSeverityType_HIGH   ScheduledAutoTuneSeverityType = "HIGH"
 )
 
 type ScheduledBy string
@@ -495,8 +550,16 @@ const (
 type SkipUnavailableStatus string
 
 const (
-	SkipUnavailableStatus_ENABLED  SkipUnavailableStatus = "ENABLED"
 	SkipUnavailableStatus_DISABLED SkipUnavailableStatus = "DISABLED"
+	SkipUnavailableStatus_ENABLED  SkipUnavailableStatus = "ENABLED"
+)
+
+type SubjectKeyIDCOption string
+
+const (
+	SubjectKeyIDCOption_Email    SubjectKeyIDCOption = "Email"
+	SubjectKeyIDCOption_UserId   SubjectKeyIDCOption = "UserId"
+	SubjectKeyIDCOption_UserName SubjectKeyIDCOption = "UserName"
 )
 
 type TLSSecurityPolicy string
@@ -516,10 +579,10 @@ const (
 type UpgradeStatus string
 
 const (
+	UpgradeStatus_FAILED                UpgradeStatus = "FAILED"
 	UpgradeStatus_IN_PROGRESS           UpgradeStatus = "IN_PROGRESS"
 	UpgradeStatus_SUCCEEDED             UpgradeStatus = "SUCCEEDED"
 	UpgradeStatus_SUCCEEDED_WITH_ISSUES UpgradeStatus = "SUCCEEDED_WITH_ISSUES"
-	UpgradeStatus_FAILED                UpgradeStatus = "FAILED"
 )
 
 type UpgradeStep string
@@ -540,28 +603,28 @@ const (
 type VPCEndpointStatus string
 
 const (
-	VPCEndpointStatus_CREATING      VPCEndpointStatus = "CREATING"
-	VPCEndpointStatus_CREATE_FAILED VPCEndpointStatus = "CREATE_FAILED"
 	VPCEndpointStatus_ACTIVE        VPCEndpointStatus = "ACTIVE"
-	VPCEndpointStatus_UPDATING      VPCEndpointStatus = "UPDATING"
-	VPCEndpointStatus_UPDATE_FAILED VPCEndpointStatus = "UPDATE_FAILED"
-	VPCEndpointStatus_DELETING      VPCEndpointStatus = "DELETING"
+	VPCEndpointStatus_CREATE_FAILED VPCEndpointStatus = "CREATE_FAILED"
+	VPCEndpointStatus_CREATING      VPCEndpointStatus = "CREATING"
 	VPCEndpointStatus_DELETE_FAILED VPCEndpointStatus = "DELETE_FAILED"
+	VPCEndpointStatus_DELETING      VPCEndpointStatus = "DELETING"
+	VPCEndpointStatus_UPDATE_FAILED VPCEndpointStatus = "UPDATE_FAILED"
+	VPCEndpointStatus_UPDATING      VPCEndpointStatus = "UPDATING"
 )
 
 type VolumeType string
 
 const (
-	VolumeType_standard VolumeType = "standard"
 	VolumeType_gp2      VolumeType = "gp2"
-	VolumeType_io1      VolumeType = "io1"
 	VolumeType_gp3      VolumeType = "gp3"
+	VolumeType_io1      VolumeType = "io1"
+	VolumeType_standard VolumeType = "standard"
 )
 
 type ZoneStatus string
 
 const (
 	ZoneStatus_Active       ZoneStatus = "Active"
-	ZoneStatus_StandBy      ZoneStatus = "StandBy"
 	ZoneStatus_NotAvailable ZoneStatus = "NotAvailable"
+	ZoneStatus_StandBy      ZoneStatus = "StandBy"
 )

@@ -139,6 +139,15 @@ type AdvancedSecurityOptionsStatus struct {
 	Options *AdvancedSecurityOptions `json:"options,omitempty"`
 }
 
+// Basic information of the OpenSearch Application.
+type ApplicationSummary struct {
+	// The Amazon Resource Name (ARN) of the domain. See Identifiers for IAM Entities
+	// (https://docs.aws.amazon.com/IAM/latest/UserGuide/index.html) in Using Amazon
+	// Web Services Identity and Access Management for more information.
+	ARN      *string `json:"arn,omitempty"`
+	Endpoint *string `json:"endpoint,omitempty"`
+}
+
 // Information about an Amazon Web Services account or service that has access
 // to an Amazon OpenSearch Service domain through the use of an interface VPC
 // endpoint.
@@ -287,6 +296,21 @@ type ColdStorageOptions struct {
 // them to.
 type CompatibleVersionsMap struct {
 	SourceVersion *string `json:"sourceVersion,omitempty"`
+}
+
+// Data sources that are associated with an OpenSearch Application.
+type DataSource struct {
+	// The Amazon Resource Name (ARN) of the domain. See Identifiers for IAM Entities
+	// (https://docs.aws.amazon.com/IAM/latest/UserGuide/index.html) in Using Amazon
+	// Web Services Identity and Access Management for more information.
+	DataSourceARN *string `json:"dataSourceARN,omitempty"`
+}
+
+// The configuration details for a data source that can be directly queried.
+type DirectQueryDataSource struct {
+	DataSourceARN *string `json:"dataSourceARN,omitempty"`
+	// A list of tags attached to a domain.
+	TagList []*Tag `json:"tagList,omitempty"`
 }
 
 // Container for the configuration of an OpenSearch Service domain.
@@ -501,9 +525,43 @@ type EncryptionAtRestOptionsStatus struct {
 	Options *EncryptionAtRestOptions `json:"options,omitempty"`
 }
 
+// Settings for IAM Identity Center for an OpenSearch Application.
+type IAMIdentityCenterOptions struct {
+	Enabled *bool `json:"enabled,omitempty"`
+	// The Amazon Resource Name (ARN) of the domain. See Identifiers for IAM Entities
+	// (https://docs.aws.amazon.com/IAM/latest/UserGuide/index.html) in Using Amazon
+	// Web Services Identity and Access Management for more information.
+	IAMIdentityCenterApplicationARN *string `json:"iamIdentityCenterApplicationARN,omitempty"`
+	// The Amazon Resource Name (ARN) of the domain. See Identifiers for IAM Entities
+	// (https://docs.aws.amazon.com/IAM/latest/UserGuide/index.html) in Using Amazon
+	// Web Services Identity and Access Management for more information.
+	IAMIdentityCenterInstanceARN           *string `json:"iamIdentityCenterInstanceARN,omitempty"`
+	IAMRoleForIdentityCenterApplicationARN *string `json:"iamRoleForIdentityCenterApplicationARN,omitempty"`
+}
+
+// Settings for IAM Identity Center.
+type IAMIdentityCenterOptionsInput struct {
+	Enabled *bool `json:"enabled,omitempty"`
+	// The Amazon Resource Name (ARN) of the domain. See Identifiers for IAM Entities
+	// (https://docs.aws.amazon.com/IAM/latest/UserGuide/index.html) in Using Amazon
+	// Web Services Identity and Access Management for more information.
+	IAMIdentityCenterInstanceARN           *string `json:"iamIdentityCenterInstanceARN,omitempty"`
+	IAMRoleForIdentityCenterApplicationARN *string `json:"iamRoleForIdentityCenterApplicationARN,omitempty"`
+}
+
 // The IP address type status for the domain.
 type IPAddressTypeStatus struct {
 	Options *string `json:"options,omitempty"`
+}
+
+// Container for IAM Identity Center Options settings.
+type IdentityCenterOptions struct {
+	EnabledAPIAccess *bool `json:"enabledAPIAccess,omitempty"`
+}
+
+// Container for IAM Identity Center Options settings.
+type IdentityCenterOptionsInput struct {
+	EnabledAPIAccess *bool `json:"enabledAPIAccess,omitempty"`
 }
 
 // Lists all instance types and available features for a given OpenSearch or
@@ -532,6 +590,13 @@ type JWTOptionsOutput struct {
 	PublicKey  *string `json:"publicKey,omitempty"`
 	RolesKey   *string `json:"rolesKey,omitempty"`
 	SubjectKey *string `json:"subjectKey,omitempty"`
+}
+
+// The configuration parameters to enable access to the key store required by
+// the package.
+type KeyStoreAccessOption struct {
+	KeyAccessRoleARN      *string `json:"keyAccessRoleARN,omitempty"`
+	KeyStoreAccessEnabled *bool   `json:"keyStoreAccessEnabled,omitempty"`
 }
 
 // Specifies whether the Amazon OpenSearch Service domain publishes the OpenSearch
@@ -580,6 +645,13 @@ type NATuralLanguageQueryGenerationOptionsInput struct {
 type NATuralLanguageQueryGenerationOptionsOutput struct {
 	CurrentState *string `json:"currentState,omitempty"`
 	DesiredState *string `json:"desiredState,omitempty"`
+}
+
+// Container for specifying configuration of any node type.
+type NodeConfig struct {
+	Count   *int64  `json:"count,omitempty"`
+	Enabled *bool   `json:"enabled,omitempty"`
+	Type    *string `json:"type_,omitempty"`
 }
 
 // Enables or disables node-to-node encryption. For more information, see Node-to-node
@@ -644,6 +716,23 @@ type OptionStatus struct {
 	CreationDate    *metav1.Time `json:"creationDate,omitempty"`
 	PendingDeletion *bool        `json:"pendingDeletion,omitempty"`
 	UpdateDate      *metav1.Time `json:"updateDate,omitempty"`
+}
+
+// The configuration parameters for a package.
+type PackageConfiguration struct {
+	RequiresRestartForConfigurationUpdate *bool `json:"requiresRestartForConfigurationUpdate,omitempty"`
+}
+
+// Encryption options for a package.
+type PackageEncryptionOptions struct {
+	EncryptionEnabled *bool   `json:"encryptionEnabled,omitempty"`
+	KMSKeyIdentifier  *string `json:"kmsKeyIdentifier,omitempty"`
+}
+
+// The vending options for a package to determine if the package can be used
+// by other users.
+type PackageVendingOptions struct {
+	VendingEnabled *bool `json:"vendingEnabled,omitempty"`
 }
 
 // Contains the specific price and frequency of a recurring charges for an OpenSearch

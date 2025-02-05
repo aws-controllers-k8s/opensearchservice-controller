@@ -1,14 +1,19 @@
 sdk_names:
   model_name: opensearch
+  package_name: opensearch
 ignore:
   resource_names:
     - Package
     # - Domain
     - OutboundConnection
     - VpcEndpoint
+    - Application
   field_paths:
     # SnapshotOptions is irrelevant for OpenSearch 5.3+
     - CreateDomainInput.SnapshotOptions
+    - CreateDomainInput.IdentityCenterOptions
+    - ClusterConfig.NodeOptions
+    - CreateDomainOutput.DomainStatus.IdentityCenterOptions
 resources:
   Domain:
     renames:
