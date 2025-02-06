@@ -73,12 +73,8 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 			advancedOptions = make(map[string]*string)
 			advancedOptions[allowedAdvancedOption] = desired.ko.Spec.AdvancedOptions[allowedAdvancedOption]
 		}
-		advancedOptions_string := make(map[string]string)
-		for k, v := range advancedOptions {
-			advancedOptions_string[k] = *v
-		}
 		resp, err := rm.sdkapi.UpgradeDomain(ctx, &svcsdk.UpgradeDomainInput{
-			AdvancedOptions:  advancedOptions_string,
+			AdvancedOptions:  aws.ToStringMap(advancedOptions),
 			DomainName:       latest.ko.Spec.Name,
 			PerformCheckOnly: nil,
 			TargetVersion:    desired.ko.Spec.EngineVersion,
@@ -203,22 +199,35 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		}
 		var zaConfig *v1alpha1.ZoneAwarenessConfig
 		if resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessConfig != nil {
-			zaConfig = &v1alpha1.ZoneAwarenessConfig{
-				AvailabilityZoneCount: aws.Int64(int64(*resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessConfig.AvailabilityZoneCount)),
+			zaConfig = &v1alpha1.ZoneAwarenessConfig{}
+			if resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessConfig.AvailabilityZoneCount != nil {
+				zaConfig.AvailabilityZoneCount = aws.Int64(int64(*resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessConfig.AvailabilityZoneCount))
 			}
 		}
 		ko.Spec.ClusterConfig = &v1alpha1.ClusterConfig{
 			ColdStorageOptions:     csOptions,
-			DedicatedMasterCount:   aws.Int64(int64(*resp.DomainConfig.ClusterConfig.Options.DedicatedMasterCount)),
 			DedicatedMasterEnabled: resp.DomainConfig.ClusterConfig.Options.DedicatedMasterEnabled,
-			DedicatedMasterType:    aws.String(string(resp.DomainConfig.ClusterConfig.Options.DedicatedMasterType)),
-			InstanceCount:          aws.Int64(int64(*resp.DomainConfig.ClusterConfig.Options.InstanceCount)),
-			InstanceType:           aws.String(string(resp.DomainConfig.ClusterConfig.Options.InstanceType)),
-			WarmCount:              aws.Int64(int64(*resp.DomainConfig.ClusterConfig.Options.WarmCount)),
 			WarmEnabled:            resp.DomainConfig.ClusterConfig.Options.WarmEnabled,
-			WarmType:               aws.String(string(resp.DomainConfig.ClusterConfig.Options.WarmType)),
 			ZoneAwarenessConfig:    zaConfig,
 			ZoneAwarenessEnabled:   resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessEnabled,
+		}
+		if resp.DomainConfig.ClusterConfig.Options.DedicatedMasterCount != nil {
+			ko.Spec.ClusterConfig.DedicatedMasterCount = aws.Int64(int64(*resp.DomainConfig.ClusterConfig.Options.DedicatedMasterCount))
+		}
+		if resp.DomainConfig.ClusterConfig.Options.DedicatedMasterType != "" {
+			ko.Spec.ClusterConfig.DedicatedMasterType = aws.String(string(resp.DomainConfig.ClusterConfig.Options.DedicatedMasterType))
+		}
+		if resp.DomainConfig.ClusterConfig.Options.InstanceCount != nil {
+			ko.Spec.ClusterConfig.InstanceCount = aws.Int64(int64(*resp.DomainConfig.ClusterConfig.Options.InstanceCount))
+		}
+		if resp.DomainConfig.ClusterConfig.Options.InstanceType != "" {
+			ko.Spec.ClusterConfig.InstanceType = aws.String(string(resp.DomainConfig.ClusterConfig.Options.InstanceType))
+		}
+		if resp.DomainConfig.ClusterConfig.Options.WarmCount != nil {
+			ko.Spec.ClusterConfig.WarmCount = aws.Int64(int64(*resp.DomainConfig.ClusterConfig.Options.WarmCount))
+		}
+		if resp.DomainConfig.ClusterConfig.Options.WarmType != "" {
+			ko.Spec.ClusterConfig.WarmType = aws.String(string(resp.DomainConfig.ClusterConfig.Options.WarmType))
 		}
 	} else {
 		ko.Spec.ClusterConfig = nil
@@ -247,10 +256,18 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 	if resp.DomainConfig.EBSOptions != nil {
 		ko.Spec.EBSOptions = &v1alpha1.EBSOptions{
 			EBSEnabled: resp.DomainConfig.EBSOptions.Options.EBSEnabled,
-			IOPS:       aws.Int64(int64(*resp.DomainConfig.EBSOptions.Options.Iops)),
-			Throughput: aws.Int64(int64(*resp.DomainConfig.EBSOptions.Options.Throughput)),
-			VolumeSize: aws.Int64(int64(*resp.DomainConfig.EBSOptions.Options.VolumeSize)),
-			VolumeType: aws.String(string(resp.DomainConfig.EBSOptions.Options.VolumeType)),
+		}
+		if resp.DomainConfig.EBSOptions.Options.Iops != nil {
+			ko.Spec.EBSOptions.IOPS = aws.Int64(int64(*resp.DomainConfig.EBSOptions.Options.Iops))
+		}
+		if resp.DomainConfig.EBSOptions.Options.Throughput != nil {
+			ko.Spec.EBSOptions.Throughput = aws.Int64(int64(*resp.DomainConfig.EBSOptions.Options.Throughput))
+		}
+		if resp.DomainConfig.EBSOptions.Options.VolumeSize != nil {
+			ko.Spec.EBSOptions.VolumeSize = aws.Int64(int64(*resp.DomainConfig.EBSOptions.Options.VolumeSize))
+		}
+		if resp.DomainConfig.EBSOptions.Options.VolumeType != "" {
+			ko.Spec.EBSOptions.VolumeType = aws.String(string(resp.DomainConfig.EBSOptions.Options.VolumeType))
 		}
 	} else {
 		ko.Spec.EBSOptions = nil
