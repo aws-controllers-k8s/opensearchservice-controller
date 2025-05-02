@@ -200,7 +200,7 @@ def es_2d3m_multi_az_vpc_2_subnet7_9_domain(os_client, resources: BootstrapResou
     )
     k8s.create_custom_resource(ref, resource_data)
     k8s.wait_resource_consumed_by_controller(ref)
-    condition.assert_not_synced(ref)
+    assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=5)
 
     domain.wait_until(ref.name, domain.processing_matches(False))
 

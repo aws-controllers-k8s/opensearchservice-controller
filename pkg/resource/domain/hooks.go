@@ -16,6 +16,7 @@ package domain
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/aws-controllers-k8s/opensearchservice-controller/apis/v1alpha1"
@@ -46,6 +47,22 @@ func domainProcessing(r *resource) bool {
 		return false
 	}
 	return *r.ko.Status.Processing
+}
+
+func isAutoTuneOptionReady(autoTuneOption *svcsdktypes.AutoTuneOptionsOutput) (bool, error) {
+	switch autoTuneOption.State {
+	case svcsdktypes.AutoTuneStateEnabled, svcsdktypes.AutoTuneStateDisabled:
+		return true, nil
+
+	case svcsdktypes.AutoTuneStateError:
+		if autoTuneOption.ErrorMessage != nil {
+			return false, fmt.Errorf("error: %s", *autoTuneOption.ErrorMessage)
+		}
+		return false, fmt.Errorf("there is an error when updating AutoTuneOptions")
+
+	default:
+		return false, nil
+	}
 }
 
 // isAutoTuneSupported returns true if instance type supports AutoTune
