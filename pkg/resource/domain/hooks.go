@@ -16,8 +16,10 @@ package domain
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/aws-controllers-k8s/opensearchservice-controller/apis/v1alpha1"
+	svcapitypes "github.com/aws-controllers-k8s/opensearchservice-controller/apis/v1alpha1"
 	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
 	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
 	ackcondition "github.com/aws-controllers-k8s/runtime/pkg/condition"
@@ -37,6 +39,27 @@ var (
 	)
 )
 
+func checkDomainStatus(resp *svcsdk.DescribeDomainOutput, ko *svcapitypes.Domain) {
+	if resp.DomainStatus.AutoTuneOptions != nil {
+		if ready, err := isAutoTuneOptionReady(string(resp.DomainStatus.AutoTuneOptions.State), resp.DomainStatus.AutoTuneOptions.ErrorMessage); err != nil {
+			reason := err.Error()
+			ackcondition.SetSynced(&resource{ko}, corev1.ConditionFalse, nil, &reason)
+		} else if !ready {
+			reason := fmt.Sprintf("waiting for AutotuneOptions to sync. Current state: %s", resp.DomainStatus.AutoTuneOptions.State)
+			ackcondition.SetSynced(&resource{ko}, corev1.ConditionFalse, nil, &reason)
+		}
+		ko.Spec.AutoTuneOptions.DesiredState = aws.String(string(resp.DomainStatus.AutoTuneOptions.State))
+	}
+
+	if domainProcessing(&resource{ko}) {
+		// Setting resource synced condition to false will trigger a requeue of
+		// the resource. No need to return a requeue error here.
+		ackcondition.SetSynced(&resource{ko}, corev1.ConditionFalse, nil, nil)
+	} else {
+		ackcondition.SetSynced(&resource{ko}, corev1.ConditionTrue, nil, nil)
+	}
+}
+
 // domainProcessing returns true if the supplied domain is in a state of
 // processing
 func domainProcessing(r *resource) bool {
@@ -46,21 +69,44 @@ func domainProcessing(r *resource) bool {
 	return *r.ko.Status.Processing
 }
 
+func isAutoTuneOptionReady(state string, errorMessage *string) (bool, error) {
+	switch svcsdktypes.AutoTuneState(state) {
+	case svcsdktypes.AutoTuneStateEnabled, svcsdktypes.AutoTuneStateDisabled:
+		return true, nil
+
+	case svcsdktypes.AutoTuneStateError:
+		if errorMessage != nil {
+			return false, fmt.Errorf("error: %s", *errorMessage)
+		}
+		return false, fmt.Errorf("there is an error when updating AutoTuneOptions")
+
+	default:
+		return false, nil
+	}
+}
+
 func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, latest *resource,
 	delta *ackcompare.Delta) (updated *resource, err error) {
 	rlog := ackrtlog.FromContext(ctx)
 	exit := rlog.Trace("rm.customUpdateDomain")
 	defer exit(err)
 
+	if latest.ko.Spec.AutoTuneOptions != nil &&
+		latest.ko.Spec.AutoTuneOptions.DesiredState != nil {
+		if ready, _ := isAutoTuneOptionReady(*latest.ko.Spec.AutoTuneOptions.DesiredState, nil); !ready {
+			return latest, ackrequeue.Needed(fmt.Errorf("autoTuneOption is updating"))
+		}
+	}
+
 	if domainProcessing(latest) {
 		msg := "Domain is currently processing configuration changes"
 		ackcondition.SetSynced(desired, corev1.ConditionFalse, &msg, nil)
-		return desired, requeueWaitWhileProcessing
+		return latest, requeueWaitWhileProcessing
 	}
 	if latest.ko.Status.UpgradeProcessing != nil && *latest.ko.Status.UpgradeProcessing {
 		msg := "Domain is currently upgrading software"
 		ackcondition.SetSynced(desired, corev1.ConditionFalse, &msg, nil)
-		return desired, requeueWaitWhileProcessing
+		return latest, requeueWaitWhileProcessing
 	}
 
 	if desired.ko.Spec.EngineVersion != nil && delta.DifferentAt("Spec.EngineVersion") {
@@ -185,6 +231,7 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		}
 		ko.Spec.AutoTuneOptions = &v1alpha1.AutoTuneOptionsInput{
 			DesiredState:         aws.String(string(resp.DomainConfig.AutoTuneOptions.Options.DesiredState)),
+			UseOffPeakWindow:     resp.DomainConfig.AutoTuneOptions.Options.UseOffPeakWindow,
 			MaintenanceSchedules: maintSchedules,
 		}
 	} else {
@@ -205,11 +252,15 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 			}
 		}
 		ko.Spec.ClusterConfig = &v1alpha1.ClusterConfig{
-			ColdStorageOptions:     csOptions,
-			DedicatedMasterEnabled: resp.DomainConfig.ClusterConfig.Options.DedicatedMasterEnabled,
-			WarmEnabled:            resp.DomainConfig.ClusterConfig.Options.WarmEnabled,
-			ZoneAwarenessConfig:    zaConfig,
-			ZoneAwarenessEnabled:   resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessEnabled,
+			ColdStorageOptions:        csOptions,
+			DedicatedMasterCount:      int64OrNil(resp.DomainConfig.ClusterConfig.Options.DedicatedMasterCount),
+			DedicatedMasterEnabled:    resp.DomainConfig.ClusterConfig.Options.DedicatedMasterEnabled,
+			InstanceCount:             int64OrNil(resp.DomainConfig.ClusterConfig.Options.InstanceCount),
+			WarmCount:                 int64OrNil(resp.DomainConfig.ClusterConfig.Options.WarmCount),
+			WarmEnabled:               resp.DomainConfig.ClusterConfig.Options.WarmEnabled,
+			ZoneAwarenessConfig:       zaConfig,
+			ZoneAwarenessEnabled:      resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessEnabled,
+			MultiAZWithStandbyEnabled: resp.DomainConfig.ClusterConfig.Options.MultiAZWithStandbyEnabled,
 		}
 		if resp.DomainConfig.ClusterConfig.Options.DedicatedMasterCount != nil {
 			ko.Spec.ClusterConfig.DedicatedMasterCount = aws.Int64(int64(*resp.DomainConfig.ClusterConfig.Options.DedicatedMasterCount))
@@ -285,12 +336,52 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 	} else {
 		ko.Spec.EngineVersion = nil
 	}
+	if resp.DomainConfig.IPAddressType != nil {
+		ko.Spec.IPAddressType = aws.String(string(resp.DomainConfig.IPAddressType.Options))
+	} else {
+		ko.Spec.IPAddressType = nil
+	}
 	if resp.DomainConfig.NodeToNodeEncryptionOptions != nil {
 		ko.Spec.NodeToNodeEncryptionOptions = &v1alpha1.NodeToNodeEncryptionOptions{
 			Enabled: resp.DomainConfig.NodeToNodeEncryptionOptions.Options.Enabled,
 		}
 	} else {
 		ko.Spec.NodeToNodeEncryptionOptions = nil
+	}
+	if resp.DomainConfig.SoftwareUpdateOptions != nil {
+		ko.Spec.SoftwareUpdateOptions = &v1alpha1.SoftwareUpdateOptions{
+			AutoSoftwareUpdateEnabled: resp.DomainConfig.SoftwareUpdateOptions.Options.AutoSoftwareUpdateEnabled,
+		}
+	} else {
+		ko.Spec.SoftwareUpdateOptions = nil
+	}
+	if resp.DomainConfig.AIMLOptions != nil && resp.DomainConfig.AIMLOptions.Options != nil {
+		if resp.DomainConfig.AIMLOptions.Options.NaturalLanguageQueryGenerationOptions != nil {
+			ko.Spec.AIMLOptions = &v1alpha1.AIMLOptionsInput{
+				NATuralLanguageQueryGenerationOptions: &v1alpha1.NATuralLanguageQueryGenerationOptionsInput{
+					DesiredState: aws.String(string(resp.DomainConfig.AIMLOptions.Options.NaturalLanguageQueryGenerationOptions.DesiredState)),
+				},
+			}
+		}
+	} else {
+		ko.Spec.AIMLOptions = nil
+	}
+	if resp.DomainConfig.OffPeakWindowOptions != nil && resp.DomainConfig.OffPeakWindowOptions.Options != nil {
+		var offPeakWindow *v1alpha1.OffPeakWindow
+		if resp.DomainConfig.OffPeakWindowOptions.Options.OffPeakWindow != nil {
+			offPeakWindow = &v1alpha1.OffPeakWindow{
+				WindowStartTime: &v1alpha1.WindowStartTime{
+					Hours:   aws.Int64(resp.DomainConfig.OffPeakWindowOptions.Options.OffPeakWindow.WindowStartTime.Hours),
+					Minutes: aws.Int64(resp.DomainConfig.OffPeakWindowOptions.Options.OffPeakWindow.WindowStartTime.Minutes),
+				},
+			}
+		}
+		ko.Spec.OffPeakWindowOptions = &v1alpha1.OffPeakWindowOptions{
+			Enabled:       resp.DomainConfig.OffPeakWindowOptions.Options.Enabled,
+			OffPeakWindow: offPeakWindow,
+		}
+	} else {
+		ko.Spec.OffPeakWindowOptions = nil
 	}
 
 	rm.setStatusDefaults(ko)
@@ -401,6 +492,9 @@ func (rm *resourceManager) newCustomUpdateRequestPayload(
 		if desired.ko.Spec.AutoTuneOptions.DesiredState != nil {
 			f3.DesiredState = svcsdktypes.AutoTuneDesiredState(*desired.ko.Spec.AutoTuneOptions.DesiredState)
 		}
+		if desired.ko.Spec.AutoTuneOptions.UseOffPeakWindow != nil {
+			f3.UseOffPeakWindow = desired.ko.Spec.AutoTuneOptions.UseOffPeakWindow
+		}
 		if desired.ko.Spec.AutoTuneOptions.MaintenanceSchedules != nil {
 			f3f1 := []svcsdktypes.AutoTuneMaintenanceSchedule{}
 			for _, f3f1iter := range desired.ko.Spec.AutoTuneOptions.MaintenanceSchedules {
@@ -470,6 +564,9 @@ func (rm *resourceManager) newCustomUpdateRequestPayload(
 		}
 		if desired.ko.Spec.ClusterConfig.ZoneAwarenessEnabled != nil {
 			f4.ZoneAwarenessEnabled = desired.ko.Spec.ClusterConfig.ZoneAwarenessEnabled
+		}
+		if desired.ko.Spec.ClusterConfig.MultiAZWithStandbyEnabled != nil {
+			f4.MultiAZWithStandbyEnabled = desired.ko.Spec.ClusterConfig.MultiAZWithStandbyEnabled
 		}
 		res.ClusterConfig = f4
 	}
@@ -586,5 +683,59 @@ func (rm *resourceManager) newCustomUpdateRequestPayload(
 		res.VPCOptions = f14
 	}
 
+	if desired.ko.Spec.IPAddressType != nil && delta.DifferentAt("Spec.IPAddressType") {
+		res.IPAddressType = svcsdktypes.IPAddressType(*desired.ko.Spec.IPAddressType)
+	}
+
+	if desired.ko.Spec.SoftwareUpdateOptions != nil && delta.DifferentAt("Spec.SoftwareUpdateOptions") {
+		f15 := &svcsdktypes.SoftwareUpdateOptions{}
+		if desired.ko.Spec.SoftwareUpdateOptions.AutoSoftwareUpdateEnabled != nil {
+			f15.AutoSoftwareUpdateEnabled = desired.ko.Spec.SoftwareUpdateOptions.AutoSoftwareUpdateEnabled
+		}
+		res.SoftwareUpdateOptions = f15
+	}
+
+	if desired.ko.Spec.AIMLOptions != nil && delta.DifferentAt("Spec.AIMLOptions") {
+		f16 := &svcsdktypes.AIMLOptionsInput{}
+		if desired.ko.Spec.AIMLOptions.NATuralLanguageQueryGenerationOptions != nil {
+			f16f0 := &svcsdktypes.NaturalLanguageQueryGenerationOptionsInput{}
+			if desired.ko.Spec.AIMLOptions.NATuralLanguageQueryGenerationOptions.DesiredState != nil {
+				f16f0.DesiredState = svcsdktypes.NaturalLanguageQueryGenerationDesiredState(*desired.ko.Spec.AIMLOptions.NATuralLanguageQueryGenerationOptions.DesiredState)
+			}
+			f16.NaturalLanguageQueryGenerationOptions = f16f0
+		}
+		res.AIMLOptions = f16
+	}
+
+	if desired.ko.Spec.OffPeakWindowOptions != nil && delta.DifferentAt("Spec.OffPeakWindowOptions") {
+		f17 := &svcsdktypes.OffPeakWindowOptions{}
+		if desired.ko.Spec.OffPeakWindowOptions.Enabled != nil {
+			f17.Enabled = desired.ko.Spec.OffPeakWindowOptions.Enabled
+		}
+		if desired.ko.Spec.OffPeakWindowOptions.OffPeakWindow != nil {
+			f17f1 := &svcsdktypes.OffPeakWindow{}
+			if desired.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime != nil {
+				f17f1f1 := &svcsdktypes.WindowStartTime{}
+				if desired.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Hours != nil {
+					f17f1f1.Hours = *desired.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Hours
+				}
+				if desired.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Minutes != nil {
+					f17f1f1.Minutes = *desired.ko.Spec.OffPeakWindowOptions.OffPeakWindow.WindowStartTime.Minutes
+				}
+				f17f1.WindowStartTime = f17f1f1
+			}
+			f17.OffPeakWindow = f17f1
+		}
+		res.OffPeakWindowOptions = f17
+	}
+
 	return res, nil
+}
+
+func int64OrNil(num *int32) *int64 {
+	if num == nil {
+		return nil
+	}
+
+	return aws.Int64(int64(*num))
 }

@@ -87,7 +87,7 @@ def es_7_9_domain(os_client, resources: BootstrapResources):
     )
     k8s.create_custom_resource(ref, resource_data)
     k8s.wait_resource_consumed_by_controller(ref)
-    condition.assert_not_synced(ref)
+    assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "False", wait_periods=10)
 
     # An OpenSearch Domain gets its `DomainStatus.Created` field set to
     # `True` almost immediately, however the `DomainStatus.Processing` field
@@ -105,7 +105,7 @@ def es_7_9_domain(os_client, resources: BootstrapResources):
     logging.info(f"ES Domain {resource.name} creation succeeded and DomainStatus.Processing is now False")
 
     time.sleep(CHECK_STATUS_WAIT_SECONDS)
-    condition.assert_synced(ref)
+    assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=10)
 
     yield ref, resource
 
@@ -144,14 +144,14 @@ def es_2d3m_multi_az_no_vpc_7_9_domain(os_client, resources: BootstrapResources)
     )
     k8s.create_custom_resource(ref, resource_data)
     k8s.wait_resource_consumed_by_controller(ref)
-    condition.assert_not_synced(ref)
+    assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "False", wait_periods=10)
 
     domain.wait_until(ref.name, domain.processing_matches(False))
 
     logging.info(f"ES Domain {resource.name} creation succeeded and DomainStatus.Processing is now False")
 
     time.sleep(CHECK_STATUS_WAIT_SECONDS)
-    condition.assert_synced(ref)
+    assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=10)
 
     yield ref, resource
 
@@ -200,14 +200,14 @@ def es_2d3m_multi_az_vpc_2_subnet7_9_domain(os_client, resources: BootstrapResou
     )
     k8s.create_custom_resource(ref, resource_data)
     k8s.wait_resource_consumed_by_controller(ref)
-    condition.assert_not_synced(ref)
+    assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "False", wait_periods=10)
 
     domain.wait_until(ref.name, domain.processing_matches(False))
 
     logging.info(f"OpenSearch Domain {resource.name} creation succeeded and DomainStatus.Processing is now False")
 
     time.sleep(CHECK_STATUS_WAIT_SECONDS)
-    condition.assert_synced(ref)
+    assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=10)
 
     yield ref, resource
 
@@ -244,7 +244,26 @@ class TestDomain:
         # now we will modify the engine version to test upgrades
         # similar to creating a new domain, this takes a long time, often 20+ minutes
         updates = {
-            "spec": {"engineVersion": "Elasticsearch_7.10"},
+            "spec": {
+                "engineVersion": "Elasticsearch_7.10",
+                "autoTuneOptions": {
+                    "useOffPeakWindow": False
+                },
+                "clusterConfig": {
+                    "multiAZWithStandbyEnabled": False
+                },
+                "offPeakWindowOptions": {
+                    "offPeakWindow": {
+                        "windowStartTime": {
+                            "hours": 23,
+                            "minutes": 30
+                        }
+                    }
+                },
+                "softwareUpdateOptions": {
+                    "autoSoftwareUpdateEnabled": True
+                }
+            }
         }
         k8s.patch_custom_resource(ref, updates)
 
@@ -260,8 +279,35 @@ class TestDomain:
                 time.sleep(CHECK_STATUS_WAIT_SECONDS)
                 continue
             else:
-                assert latest['DomainStatus']['EngineVersion'] == "Elasticsearch_7.10"
                 break
+        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=10)
+        cr = k8s.get_resource(ref)
+
+        assert latest['DomainStatus']['SoftwareUpdateOptions']["AutoSoftwareUpdateEnabled"] is True
+
+        assert "engineVersion" in cr["spec"]
+        assert cr["spec"]["engineVersion"] == latest['DomainStatus']['EngineVersion'] 
+
+        assert "autoTuneOptions" in cr["spec"]
+        assert  "useOffPeakWindow" in cr["spec"]["autoTuneOptions"]
+        assert cr["spec"]["autoTuneOptions"]["useOffPeakWindow"] == False
+
+        assert "clusterConfig" in cr["spec"]
+        assert  "multiAZWithStandbyEnabled" in cr["spec"]["clusterConfig"]
+        assert cr["spec"]["clusterConfig"]["multiAZWithStandbyEnabled"] == False
+
+        assert "offPeakWindowOptions" in cr["spec"]
+        assert  "enabled" in cr["spec"]["offPeakWindowOptions"]
+        assert cr["spec"]["offPeakWindowOptions"]["enabled"] == latest['DomainStatus']['OffPeakWindowOptions']["Enabled"]
+
+        assert  "offPeakWindow" in cr["spec"]["offPeakWindowOptions"]
+        assert  "windowStartTime" in cr["spec"]["offPeakWindowOptions"]["offPeakWindow"]
+        assert  "hours" in cr["spec"]["offPeakWindowOptions"]["offPeakWindow"]["windowStartTime"]
+        assert  "minutes" in cr["spec"]["offPeakWindowOptions"]["offPeakWindow"]["windowStartTime"]
+        latest_hours = latest['DomainStatus']['OffPeakWindowOptions']["OffPeakWindow"]["WindowStartTime"]["Hours"]
+        latest_minutes = latest['DomainStatus']['OffPeakWindowOptions']["OffPeakWindow"]["WindowStartTime"]["Minutes"]
+        assert  cr["spec"]["offPeakWindowOptions"]["offPeakWindow"]["windowStartTime"]["hours"] == latest_hours
+        assert  cr["spec"]["offPeakWindowOptions"]["offPeakWindow"]["windowStartTime"]["minutes"] == latest_minutes
 
     def test_create_delete_es_2d3m_multi_az_no_vpc_7_9(self, es_2d3m_multi_az_no_vpc_7_9_domain):
         ref, resource = es_2d3m_multi_az_no_vpc_7_9_domain
