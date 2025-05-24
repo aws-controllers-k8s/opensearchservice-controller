@@ -27,6 +27,8 @@ type DomainSpec struct {
 	AIMLOptions *AIMLOptionsInput `json:"aimlOptions,omitempty"`
 	// Identity and Access Management (IAM) policy document specifying the access
 	// policies for the new domain.
+	//
+	// Regex Pattern: `.*`
 	AccessPolicies *string `json:"accessPolicies,omitempty"`
 	// Key-value pairs to specify advanced configuration options. The following
 	// key-value pairs are supported:
@@ -75,6 +77,8 @@ type DomainSpec struct {
 	// version for the OpenSearch Service domain. For example, OpenSearch_1.0 or
 	// Elasticsearch_7.9. For more information, see Creating and managing Amazon
 	// OpenSearch Service domains (https://docs.aws.amazon.com/opensearch-service/latest/developerguide/createupdatedomains.html#createdomains).
+	//
+	// Regex Pattern: `^Elasticsearch_[0-9]{1}\.[0-9]{1,2}$|^OpenSearch_[0-9]{1,2}\.[0-9]{1,2}$`
 	EngineVersion *string `json:"engineVersion,omitempty"`
 	// Specify either dual stack or IPv4 as your IP address type. Dual stack allows
 	// you to share domain resources across IPv4 and IPv6 address types, and is
@@ -85,6 +89,8 @@ type DomainSpec struct {
 	LogPublishingOptions map[string]*LogPublishingOption `json:"logPublishingOptions,omitempty"`
 	// Name of the OpenSearch Service domain to create. Domain names are unique
 	// across the domains owned by an account within an Amazon Web Services Region.
+	//
+	// Regex Pattern: `^[a-z][a-z0-9\-]+$`
 	// +kubebuilder:validation:Required
 	Name *string `json:"name"`
 	// Enables node-to-node encryption.

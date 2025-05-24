@@ -43,6 +43,8 @@ spec:
                 description: |-
                   Identity and Access Management (IAM) policy document specifying the access
                   policies for the new domain.
+
+                  Regex Pattern: `.*`
                 type: string
               advancedOptions:
                 additionalProperties:
@@ -325,6 +327,8 @@ spec:
                   version for the OpenSearch Service domain. For example, OpenSearch_1.0 or
                   Elasticsearch_7.9. For more information, see Creating and managing Amazon
                   OpenSearch Service domains (https://docs.aws.amazon.com/opensearch-service/latest/developerguide/createupdatedomains.html#createdomains).
+
+                  Regex Pattern: `^Elasticsearch_[0-9]{1}\.[0-9]{1,2}$|^OpenSearch_[0-9]{1,2}\.[0-9]{1,2}$`
                 type: string
               ipAddressType:
                 description: |-
@@ -356,6 +360,8 @@ spec:
                 description: |-
                   Name of the OpenSearch Service domain to create. Domain names are unique
                   across the domains owned by an account within an Amazon Web Services Region.
+
+                  Regex Pattern: `^[a-z][a-z0-9\-]+$`
                 type: string
               nodeToNodeEncryptionOptions:
                 description: Enables node-to-node encryption.
