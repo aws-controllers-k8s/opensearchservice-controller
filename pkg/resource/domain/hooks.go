@@ -192,10 +192,14 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 	if resp.DomainConfig.AdvancedSecurityOptions != nil && resp.DomainConfig.AdvancedSecurityOptions.Options != nil {
 		var samlOptions *v1alpha1.SAMLOptionsInput
 		if resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions != nil {
+			var timeoutMinutes *int64
+			if resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.SessionTimeoutMinutes != nil {
+				timeoutMinutes = aws.Int64(int64(*resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.SessionTimeoutMinutes))
+			}
 			samlOptions = &v1alpha1.SAMLOptionsInput{
 				Enabled:               resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.Enabled,
 				RolesKey:              resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.RolesKey,
-				SessionTimeoutMinutes: aws.Int64(int64(*resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.SessionTimeoutMinutes)),
+				SessionTimeoutMinutes: timeoutMinutes,
 				SubjectKey:            resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.SubjectKey,
 			}
 			if resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.Idp != nil {
