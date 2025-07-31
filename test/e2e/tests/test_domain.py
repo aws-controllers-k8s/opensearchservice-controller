@@ -240,6 +240,7 @@ class TestDomain:
         assert cr is not None
         assert 'status' in cr
         domain.assert_endpoint(cr)
+        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=30)
 
         # now we will modify the engine version to test upgrades
         # similar to creating a new domain, this takes a long time, often 20+ minutes
