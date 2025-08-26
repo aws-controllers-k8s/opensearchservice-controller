@@ -18,8 +18,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/aws-controllers-k8s/opensearchservice-controller/apis/v1alpha1"
-	svcapitypes "github.com/aws-controllers-k8s/opensearchservice-controller/apis/v1alpha1"
 	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
 	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
 	ackcondition "github.com/aws-controllers-k8s/runtime/pkg/condition"
@@ -28,8 +26,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	svcsdk "github.com/aws/aws-sdk-go-v2/service/opensearch"
 	svcsdktypes "github.com/aws/aws-sdk-go-v2/service/opensearch/types"
+	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	svcapitypes "github.com/aws-controllers-k8s/opensearchservice-controller/apis/v1alpha1"
 )
 
 var (
@@ -38,6 +39,18 @@ var (
 		ackrequeue.DefaultRequeueAfterDuration,
 	)
 )
+
+func customPreCompare(delta *ackcompare.Delta, a *resource, b *resource) {
+	if a.ko.Spec.AutoTuneOptions != nil && b.ko.Spec.AutoTuneOptions != nil {
+		if len(a.ko.Spec.AutoTuneOptions.MaintenanceSchedules) != len(b.ko.Spec.AutoTuneOptions.MaintenanceSchedules) {
+			delta.Add("Spec.AutoTuneOptions.MaintenanceSchedules", a.ko.Spec.AutoTuneOptions.MaintenanceSchedules, b.ko.Spec.AutoTuneOptions.MaintenanceSchedules)
+		} else if len(a.ko.Spec.AutoTuneOptions.MaintenanceSchedules) > 0 {
+			if !cmp.Equal(a.ko.Spec.AutoTuneOptions.MaintenanceSchedules, b.ko.Spec.AutoTuneOptions.MaintenanceSchedules) {
+				delta.Add("Spec.AutoTuneOptions.MaintenanceSchedules", a.ko.Spec.AutoTuneOptions.MaintenanceSchedules, b.ko.Spec.AutoTuneOptions.MaintenanceSchedules)
+			}
+		}
+	}
+}
 
 func checkDomainStatus(resp *svcsdk.DescribeDomainOutput, ko *svcapitypes.Domain) {
 	if resp.DomainStatus.AutoTuneOptions != nil {
@@ -87,19 +100,21 @@ func isAutoTuneOptionReady(state string, errorMessage *string) (bool, error) {
 
 func (rm *resourceManager) setAutoTuneOptions(ctx context.Context, res *svcapitypes.Domain) (err error) {
 	rlog := ackrtlog.FromContext(ctx)
-	exit := rlog.Trace("rm.customUpdateDomain")
+	exit := rlog.Trace("rm.setAutoTuneOptions")
 	defer func() { exit(err) }()
 
 	resp, err := rm.sdkapi.DescribeDomainConfig(ctx, &svcsdk.DescribeDomainConfigInput{DomainName: res.Spec.Name})
 	rm.metrics.RecordAPICall("READ_ONE", "DescribeDomainConfig", err)
-
+	if err != nil {
+		return err
+	}
 	if resp.DomainConfig.AutoTuneOptions != nil {
 		respMaintSchedules := resp.DomainConfig.AutoTuneOptions.Options.MaintenanceSchedules
-		maintSchedules := make([]*v1alpha1.AutoTuneMaintenanceSchedule, len(respMaintSchedules))
+		maintSchedules := make([]*svcapitypes.AutoTuneMaintenanceSchedule, len(respMaintSchedules))
 		for i, sched := range respMaintSchedules {
-			maintSchedules[i] = &v1alpha1.AutoTuneMaintenanceSchedule{
+			maintSchedules[i] = &svcapitypes.AutoTuneMaintenanceSchedule{
 				CronExpressionForRecurrence: sched.CronExpressionForRecurrence,
-				Duration: &v1alpha1.Duration{
+				Duration: &svcapitypes.Duration{
 					Unit:  aws.String(string(sched.Duration.Unit)),
 					Value: sched.Duration.Value,
 				},
@@ -124,7 +139,7 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 	delta *ackcompare.Delta) (updated *resource, err error) {
 	rlog := ackrtlog.FromContext(ctx)
 	exit := rlog.Trace("rm.customUpdateDomain")
-	defer exit(err)
+	defer func() { exit(err) }()
 
 	res := desired.ko.DeepCopy()
 	updated = &resource{res}
@@ -207,7 +222,7 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 	}
 
 	if resp.DomainConfig.ChangeProgressDetails != nil {
-		ko.Status.ChangeProgressDetails = &v1alpha1.ChangeProgressDetails{
+		ko.Status.ChangeProgressDetails = &svcapitypes.ChangeProgressDetails{
 			ChangeID: resp.DomainConfig.ChangeProgressDetails.ChangeId,
 			Message:  resp.DomainConfig.ChangeProgressDetails.Message,
 		}
@@ -230,26 +245,26 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		ko.Spec.AdvancedOptions = nil
 	}
 	if resp.DomainConfig.AdvancedSecurityOptions != nil && resp.DomainConfig.AdvancedSecurityOptions.Options != nil {
-		var samlOptions *v1alpha1.SAMLOptionsInput
+		var samlOptions *svcapitypes.SAMLOptionsInput
 		if resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions != nil {
 			var timeoutMinutes *int64
 			if resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.SessionTimeoutMinutes != nil {
 				timeoutMinutes = aws.Int64(int64(*resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.SessionTimeoutMinutes))
 			}
-			samlOptions = &v1alpha1.SAMLOptionsInput{
+			samlOptions = &svcapitypes.SAMLOptionsInput{
 				Enabled:               resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.Enabled,
 				RolesKey:              resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.RolesKey,
 				SessionTimeoutMinutes: timeoutMinutes,
 				SubjectKey:            resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.SubjectKey,
 			}
 			if resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.Idp != nil {
-				samlOptions.IDp = &v1alpha1.SAMLIDp{
+				samlOptions.IDp = &svcapitypes.SAMLIDp{
 					EntityID:        resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.Idp.EntityId,
 					MetadataContent: resp.DomainConfig.AdvancedSecurityOptions.Options.SAMLOptions.Idp.MetadataContent,
 				}
 			}
 		}
-		ko.Spec.AdvancedSecurityOptions = &v1alpha1.AdvancedSecurityOptionsInput{
+		ko.Spec.AdvancedSecurityOptions = &svcapitypes.AdvancedSecurityOptionsInput{
 			AnonymousAuthEnabled:        resp.DomainConfig.AdvancedSecurityOptions.Options.AnonymousAuthEnabled,
 			Enabled:                     resp.DomainConfig.AdvancedSecurityOptions.Options.Enabled,
 			InternalUserDatabaseEnabled: resp.DomainConfig.AdvancedSecurityOptions.Options.InternalUserDatabaseEnabled,
@@ -260,11 +275,11 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 	}
 	if resp.DomainConfig.AutoTuneOptions != nil {
 		respMaintSchedules := resp.DomainConfig.AutoTuneOptions.Options.MaintenanceSchedules
-		maintSchedules := make([]*v1alpha1.AutoTuneMaintenanceSchedule, len(respMaintSchedules))
+		maintSchedules := make([]*svcapitypes.AutoTuneMaintenanceSchedule, len(respMaintSchedules))
 		for i, sched := range respMaintSchedules {
-			maintSchedules[i] = &v1alpha1.AutoTuneMaintenanceSchedule{
+			maintSchedules[i] = &svcapitypes.AutoTuneMaintenanceSchedule{
 				CronExpressionForRecurrence: sched.CronExpressionForRecurrence,
-				Duration: &v1alpha1.Duration{
+				Duration: &svcapitypes.Duration{
 					Unit:  aws.String(string(sched.Duration.Unit)),
 					Value: sched.Duration.Value,
 				},
@@ -273,7 +288,7 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 				maintSchedules[i].StartAt = &v1.Time{Time: *sched.StartAt}
 			}
 		}
-		ko.Spec.AutoTuneOptions = &v1alpha1.AutoTuneOptionsInput{
+		ko.Spec.AutoTuneOptions = &svcapitypes.AutoTuneOptionsInput{
 			DesiredState:         aws.String(string(resp.DomainConfig.AutoTuneOptions.Options.DesiredState)),
 			UseOffPeakWindow:     resp.DomainConfig.AutoTuneOptions.Options.UseOffPeakWindow,
 			MaintenanceSchedules: maintSchedules,
@@ -282,20 +297,20 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		ko.Spec.AutoTuneOptions = nil
 	}
 	if resp.DomainConfig.ClusterConfig != nil && resp.DomainConfig.ClusterConfig.Options != nil {
-		var csOptions *v1alpha1.ColdStorageOptions
+		var csOptions *svcapitypes.ColdStorageOptions
 		if resp.DomainConfig.ClusterConfig.Options.ColdStorageOptions != nil {
-			csOptions = &v1alpha1.ColdStorageOptions{
+			csOptions = &svcapitypes.ColdStorageOptions{
 				Enabled: resp.DomainConfig.ClusterConfig.Options.ColdStorageOptions.Enabled,
 			}
 		}
-		var zaConfig *v1alpha1.ZoneAwarenessConfig
+		var zaConfig *svcapitypes.ZoneAwarenessConfig
 		if resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessConfig != nil {
-			zaConfig = &v1alpha1.ZoneAwarenessConfig{}
+			zaConfig = &svcapitypes.ZoneAwarenessConfig{}
 			if resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessConfig.AvailabilityZoneCount != nil {
 				zaConfig.AvailabilityZoneCount = aws.Int64(int64(*resp.DomainConfig.ClusterConfig.Options.ZoneAwarenessConfig.AvailabilityZoneCount))
 			}
 		}
-		ko.Spec.ClusterConfig = &v1alpha1.ClusterConfig{
+		ko.Spec.ClusterConfig = &svcapitypes.ClusterConfig{
 			ColdStorageOptions:        csOptions,
 			DedicatedMasterCount:      int64OrNil(resp.DomainConfig.ClusterConfig.Options.DedicatedMasterCount),
 			DedicatedMasterEnabled:    resp.DomainConfig.ClusterConfig.Options.DedicatedMasterEnabled,
@@ -328,7 +343,7 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		ko.Spec.ClusterConfig = nil
 	}
 	if resp.DomainConfig.CognitoOptions != nil && resp.DomainConfig.CognitoOptions.Options != nil {
-		ko.Spec.CognitoOptions = &v1alpha1.CognitoOptions{
+		ko.Spec.CognitoOptions = &svcapitypes.CognitoOptions{
 			Enabled:        resp.DomainConfig.CognitoOptions.Options.Enabled,
 			IdentityPoolID: resp.DomainConfig.CognitoOptions.Options.IdentityPoolId,
 			RoleARN:        resp.DomainConfig.CognitoOptions.Options.RoleArn,
@@ -338,7 +353,7 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		ko.Spec.CognitoOptions = nil
 	}
 	if resp.DomainConfig.DomainEndpointOptions != nil {
-		ko.Spec.DomainEndpointOptions = &v1alpha1.DomainEndpointOptions{
+		ko.Spec.DomainEndpointOptions = &svcapitypes.DomainEndpointOptions{
 			CustomEndpoint:               resp.DomainConfig.DomainEndpointOptions.Options.CustomEndpoint,
 			CustomEndpointCertificateARN: resp.DomainConfig.DomainEndpointOptions.Options.CustomEndpointCertificateArn,
 			CustomEndpointEnabled:        resp.DomainConfig.DomainEndpointOptions.Options.CustomEndpointEnabled,
@@ -349,7 +364,7 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		ko.Spec.DomainEndpointOptions = nil
 	}
 	if resp.DomainConfig.EBSOptions != nil {
-		ko.Spec.EBSOptions = &v1alpha1.EBSOptions{
+		ko.Spec.EBSOptions = &svcapitypes.EBSOptions{
 			EBSEnabled: resp.DomainConfig.EBSOptions.Options.EBSEnabled,
 		}
 		if resp.DomainConfig.EBSOptions.Options.Iops != nil {
@@ -368,7 +383,7 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		ko.Spec.EBSOptions = nil
 	}
 	if resp.DomainConfig.EncryptionAtRestOptions != nil {
-		ko.Spec.EncryptionAtRestOptions = &v1alpha1.EncryptionAtRestOptions{
+		ko.Spec.EncryptionAtRestOptions = &svcapitypes.EncryptionAtRestOptions{
 			Enabled:  resp.DomainConfig.EncryptionAtRestOptions.Options.Enabled,
 			KMSKeyID: resp.DomainConfig.EncryptionAtRestOptions.Options.KmsKeyId,
 		}
@@ -386,14 +401,14 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		ko.Spec.IPAddressType = nil
 	}
 	if resp.DomainConfig.NodeToNodeEncryptionOptions != nil {
-		ko.Spec.NodeToNodeEncryptionOptions = &v1alpha1.NodeToNodeEncryptionOptions{
+		ko.Spec.NodeToNodeEncryptionOptions = &svcapitypes.NodeToNodeEncryptionOptions{
 			Enabled: resp.DomainConfig.NodeToNodeEncryptionOptions.Options.Enabled,
 		}
 	} else {
 		ko.Spec.NodeToNodeEncryptionOptions = nil
 	}
 	if resp.DomainConfig.SoftwareUpdateOptions != nil {
-		ko.Spec.SoftwareUpdateOptions = &v1alpha1.SoftwareUpdateOptions{
+		ko.Spec.SoftwareUpdateOptions = &svcapitypes.SoftwareUpdateOptions{
 			AutoSoftwareUpdateEnabled: resp.DomainConfig.SoftwareUpdateOptions.Options.AutoSoftwareUpdateEnabled,
 		}
 	} else {
@@ -401,8 +416,8 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 	}
 	if resp.DomainConfig.AIMLOptions != nil && resp.DomainConfig.AIMLOptions.Options != nil {
 		if resp.DomainConfig.AIMLOptions.Options.NaturalLanguageQueryGenerationOptions != nil {
-			ko.Spec.AIMLOptions = &v1alpha1.AIMLOptionsInput{
-				NATuralLanguageQueryGenerationOptions: &v1alpha1.NATuralLanguageQueryGenerationOptionsInput{
+			ko.Spec.AIMLOptions = &svcapitypes.AIMLOptionsInput{
+				NATuralLanguageQueryGenerationOptions: &svcapitypes.NATuralLanguageQueryGenerationOptionsInput{
 					DesiredState: aws.String(string(resp.DomainConfig.AIMLOptions.Options.NaturalLanguageQueryGenerationOptions.DesiredState)),
 				},
 			}
@@ -411,16 +426,16 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		ko.Spec.AIMLOptions = nil
 	}
 	if resp.DomainConfig.OffPeakWindowOptions != nil && resp.DomainConfig.OffPeakWindowOptions.Options != nil {
-		var offPeakWindow *v1alpha1.OffPeakWindow
+		var offPeakWindow *svcapitypes.OffPeakWindow
 		if resp.DomainConfig.OffPeakWindowOptions.Options.OffPeakWindow != nil {
-			offPeakWindow = &v1alpha1.OffPeakWindow{
-				WindowStartTime: &v1alpha1.WindowStartTime{
+			offPeakWindow = &svcapitypes.OffPeakWindow{
+				WindowStartTime: &svcapitypes.WindowStartTime{
 					Hours:   aws.Int64(resp.DomainConfig.OffPeakWindowOptions.Options.OffPeakWindow.WindowStartTime.Hours),
 					Minutes: aws.Int64(resp.DomainConfig.OffPeakWindowOptions.Options.OffPeakWindow.WindowStartTime.Minutes),
 				},
 			}
 		}
-		ko.Spec.OffPeakWindowOptions = &v1alpha1.OffPeakWindowOptions{
+		ko.Spec.OffPeakWindowOptions = &svcapitypes.OffPeakWindowOptions{
 			Enabled:       resp.DomainConfig.OffPeakWindowOptions.Options.Enabled,
 			OffPeakWindow: offPeakWindow,
 		}
