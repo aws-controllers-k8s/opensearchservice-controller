@@ -535,6 +535,10 @@ func (rm *resourceManager) sdkFind(
 	}
 
 	rm.setStatusDefaults(ko)
+	err = rm.setAutoTuneOptions(ctx, ko)
+	if err != nil {
+		return &resource{ko}, err
+	}
 	checkDomainStatus(resp, ko)
 
 	return &resource{ko}, nil

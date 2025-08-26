@@ -85,28 +85,67 @@ func isAutoTuneOptionReady(state string, errorMessage *string) (bool, error) {
 	}
 }
 
+func (rm *resourceManager) setAutoTuneOptions(ctx context.Context, res *svcapitypes.Domain) (err error) {
+	rlog := ackrtlog.FromContext(ctx)
+	exit := rlog.Trace("rm.customUpdateDomain")
+	defer func() { exit(err) }()
+
+	resp, err := rm.sdkapi.DescribeDomainConfig(ctx, &svcsdk.DescribeDomainConfigInput{DomainName: res.Spec.Name})
+	rm.metrics.RecordAPICall("READ_ONE", "DescribeDomainConfig", err)
+
+	if resp.DomainConfig.AutoTuneOptions != nil {
+		respMaintSchedules := resp.DomainConfig.AutoTuneOptions.Options.MaintenanceSchedules
+		maintSchedules := make([]*v1alpha1.AutoTuneMaintenanceSchedule, len(respMaintSchedules))
+		for i, sched := range respMaintSchedules {
+			maintSchedules[i] = &v1alpha1.AutoTuneMaintenanceSchedule{
+				CronExpressionForRecurrence: sched.CronExpressionForRecurrence,
+				Duration: &v1alpha1.Duration{
+					Unit:  aws.String(string(sched.Duration.Unit)),
+					Value: sched.Duration.Value,
+				},
+			}
+			if sched.StartAt != nil {
+				maintSchedules[i].StartAt = &v1.Time{Time: *sched.StartAt}
+			}
+		}
+		res.Spec.AutoTuneOptions = &svcapitypes.AutoTuneOptionsInput{
+			DesiredState:         aws.String(string(resp.DomainConfig.AutoTuneOptions.Options.DesiredState)),
+			UseOffPeakWindow:     resp.DomainConfig.AutoTuneOptions.Options.UseOffPeakWindow,
+			MaintenanceSchedules: maintSchedules,
+		}
+	} else {
+		res.Spec.AutoTuneOptions = nil
+	}
+
+	return nil
+}
+
 func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, latest *resource,
 	delta *ackcompare.Delta) (updated *resource, err error) {
 	rlog := ackrtlog.FromContext(ctx)
 	exit := rlog.Trace("rm.customUpdateDomain")
 	defer exit(err)
 
+	res := desired.ko.DeepCopy()
+	updated = &resource{res}
+	updated.SetStatus(latest)
+
 	if latest.ko.Spec.AutoTuneOptions != nil &&
 		latest.ko.Spec.AutoTuneOptions.DesiredState != nil {
 		if ready, _ := isAutoTuneOptionReady(*latest.ko.Spec.AutoTuneOptions.DesiredState, nil); !ready {
-			return latest, ackrequeue.Needed(fmt.Errorf("autoTuneOption is updating"))
+			return updated, ackrequeue.Needed(fmt.Errorf("autoTuneOption is updating"))
 		}
 	}
 
 	if domainProcessing(latest) {
 		msg := "Domain is currently processing configuration changes"
 		ackcondition.SetSynced(desired, corev1.ConditionFalse, &msg, nil)
-		return latest, requeueWaitWhileProcessing
+		return updated, requeueWaitWhileProcessing
 	}
 	if latest.ko.Status.UpgradeProcessing != nil && *latest.ko.Status.UpgradeProcessing {
 		msg := "Domain is currently upgrading software"
 		ackcondition.SetSynced(desired, corev1.ConditionFalse, &msg, nil)
-		return latest, requeueWaitWhileProcessing
+		return updated, requeueWaitWhileProcessing
 	}
 
 	if desired.ko.Spec.EngineVersion != nil && delta.DifferentAt("Spec.EngineVersion") {
@@ -131,6 +170,7 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		}
 
 		ko := desired.ko.DeepCopy()
+		ko.Status = *latest.ko.Status.DeepCopy()
 		if resp.TargetVersion != nil {
 			// not sure that this is the right way to handle the in-progress upgrade
 			ko.Status.ServiceSoftwareOptions.UpdateStatus = aws.String("PENDING_UPDATE")
@@ -149,19 +189,19 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 
 	input, err := rm.newCustomUpdateRequestPayload(ctx, desired, latest, delta)
 	if err != nil {
-		return nil, err
+		return updated, err
 	}
 
 	resp, err := rm.sdkapi.UpdateDomainConfig(ctx, input)
 	rm.metrics.RecordAPICall("UPDATE", "UpdateDomainConfig", err)
 	if err != nil {
-		return nil, err
+		return updated, err
 	}
 
 	// Merge in the information we read from the API call above to the copy of
 	// the original Kubernetes object we passed to the function
 	ko := desired.ko.DeepCopy()
-
+	ko.Status = *latest.ko.Status.DeepCopy()
 	if ko.Status.ACKResourceMetadata == nil {
 		ko.Status.ACKResourceMetadata = &ackv1alpha1.ResourceMetadata{}
 	}
