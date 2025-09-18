@@ -17,6 +17,8 @@
 from dataclasses import dataclass, field
 import logging
 import time
+from datetime import datetime
+from dateutil.tz import tzlocal, tzutc
 from typing import Dict
 
 from acktest.resources import random_suffix_name
@@ -234,6 +236,9 @@ class TestDomain:
         assert latest['DomainStatus']['ClusterConfig']['InstanceCount'] == resource.data_node_count
         assert latest['DomainStatus']['ClusterConfig']['ZoneAwarenessEnabled'] == resource.is_zone_aware
 
+        latest_config = domain.get_config(resource.name)
+        assert latest_config['DomainConfig']['AutoTuneOptions']['Options']['MaintenanceSchedules'][0]['StartAt'] == datetime(2025, 12, 15, 0, 0, tzinfo=tzlocal())
+
         time.sleep(CHECK_ENDPOINT_WAIT_SECONDS)
 
         cr = k8s.get_resource(ref)
@@ -248,7 +253,8 @@ class TestDomain:
             "spec": {
                 "engineVersion": "Elasticsearch_7.10",
                 "autoTuneOptions": {
-                    "useOffPeakWindow": False
+                    "useOffPeakWindow": False,
+                    "maintenanceSchedules": []
                 },
                 "clusterConfig": {
                     "multiAZWithStandbyEnabled": False
@@ -309,6 +315,9 @@ class TestDomain:
         latest_minutes = latest['DomainStatus']['OffPeakWindowOptions']["OffPeakWindow"]["WindowStartTime"]["Minutes"]
         assert  cr["spec"]["offPeakWindowOptions"]["offPeakWindow"]["windowStartTime"]["hours"] == latest_hours
         assert  cr["spec"]["offPeakWindowOptions"]["offPeakWindow"]["windowStartTime"]["minutes"] == latest_minutes
+
+        latest_config = domain.get_config(resource.name)
+        assert len(latest_config['DomainConfig']['AutoTuneOptions']['Options']['MaintenanceSchedules']) == 0
 
     def test_create_delete_es_2d3m_multi_az_no_vpc_7_9(self, es_2d3m_multi_az_no_vpc_7_9_domain):
         ref, resource = es_2d3m_multi_az_no_vpc_7_9_domain

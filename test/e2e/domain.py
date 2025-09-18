@@ -126,6 +126,19 @@ def get(domain_name):
     except c.exceptions.ResourceNotFoundException:
         return None
 
+def get_config(domain_name):
+    """Returns a dict containing the domain config from the OpenSearch API.
+
+    if no such domain exists, returns None.
+    """
+    c = boto3.client('opensearch')
+    try:
+        resp = c.describe_domain_config(DomainName=domain_name)
+        assert 'DomainConfig' in resp
+        return resp
+    except c.exceptions.ResourceNotFoundException:
+        return None
+    
 
 # Apparently, there is an 'endpoint' and an 'endpoints' field for a domain.
 # The 'endpoint' field is filled in with a URL when the domain does *not* use

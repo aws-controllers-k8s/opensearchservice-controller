@@ -42,6 +42,7 @@ func newResourceDelta(
 		delta.Add("", a, b)
 		return delta
 	}
+	customPreCompare(delta, a, b)
 
 	if ackcompare.HasNilDifference(a.ko.Spec.AIMLOptions, b.ko.Spec.AIMLOptions) {
 		delta.Add("Spec.AIMLOptions", a.ko.Spec.AIMLOptions, b.ko.Spec.AIMLOptions)
@@ -226,13 +227,6 @@ func newResourceDelta(
 		} else if a.ko.Spec.AutoTuneOptions.DesiredState != nil && b.ko.Spec.AutoTuneOptions.DesiredState != nil {
 			if *a.ko.Spec.AutoTuneOptions.DesiredState != *b.ko.Spec.AutoTuneOptions.DesiredState {
 				delta.Add("Spec.AutoTuneOptions.DesiredState", a.ko.Spec.AutoTuneOptions.DesiredState, b.ko.Spec.AutoTuneOptions.DesiredState)
-			}
-		}
-		if len(a.ko.Spec.AutoTuneOptions.MaintenanceSchedules) != len(b.ko.Spec.AutoTuneOptions.MaintenanceSchedules) {
-			delta.Add("Spec.AutoTuneOptions.MaintenanceSchedules", a.ko.Spec.AutoTuneOptions.MaintenanceSchedules, b.ko.Spec.AutoTuneOptions.MaintenanceSchedules)
-		} else if len(a.ko.Spec.AutoTuneOptions.MaintenanceSchedules) > 0 {
-			if !reflect.DeepEqual(a.ko.Spec.AutoTuneOptions.MaintenanceSchedules, b.ko.Spec.AutoTuneOptions.MaintenanceSchedules) {
-				delta.Add("Spec.AutoTuneOptions.MaintenanceSchedules", a.ko.Spec.AutoTuneOptions.MaintenanceSchedules, b.ko.Spec.AutoTuneOptions.MaintenanceSchedules)
 			}
 		}
 		if ackcompare.HasNilDifference(a.ko.Spec.AutoTuneOptions.UseOffPeakWindow, b.ko.Spec.AutoTuneOptions.UseOffPeakWindow) {
