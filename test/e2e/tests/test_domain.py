@@ -89,7 +89,7 @@ def es_7_9_domain(os_client, resources: BootstrapResources):
     )
     k8s.create_custom_resource(ref, resource_data)
     k8s.wait_resource_consumed_by_controller(ref)
-    assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "False", wait_periods=10)
+    assert k8s.wait_on_condition(ref, "Ready", "False", wait_periods=10)
 
     # An OpenSearch Domain gets its `DomainStatus.Created` field set to
     # `True` almost immediately, however the `DomainStatus.Processing` field
@@ -107,7 +107,7 @@ def es_7_9_domain(os_client, resources: BootstrapResources):
     logging.info(f"ES Domain {resource.name} creation succeeded and DomainStatus.Processing is now False")
 
     time.sleep(CHECK_STATUS_WAIT_SECONDS)
-    assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=10)
+    assert k8s.wait_on_condition(ref, "Ready", "True", wait_periods=10)
 
     yield ref, resource
 
@@ -146,14 +146,14 @@ def es_2d3m_multi_az_no_vpc_7_9_domain(os_client, resources: BootstrapResources)
     )
     k8s.create_custom_resource(ref, resource_data)
     k8s.wait_resource_consumed_by_controller(ref)
-    assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "False", wait_periods=10)
+    assert k8s.wait_on_condition(ref, "Ready", "False", wait_periods=10)
 
     domain.wait_until(ref.name, domain.processing_matches(False))
 
     logging.info(f"ES Domain {resource.name} creation succeeded and DomainStatus.Processing is now False")
 
     time.sleep(CHECK_STATUS_WAIT_SECONDS)
-    assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=10)
+    assert k8s.wait_on_condition(ref, "Ready", "True", wait_periods=10)
 
     yield ref, resource
 
@@ -202,14 +202,14 @@ def es_2d3m_multi_az_vpc_2_subnet7_9_domain(os_client, resources: BootstrapResou
     )
     k8s.create_custom_resource(ref, resource_data)
     k8s.wait_resource_consumed_by_controller(ref)
-    assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "False", wait_periods=10)
+    assert k8s.wait_on_condition(ref, "Ready", "False", wait_periods=10)
 
     domain.wait_until(ref.name, domain.processing_matches(False))
 
     logging.info(f"OpenSearch Domain {resource.name} creation succeeded and DomainStatus.Processing is now False")
 
     time.sleep(CHECK_STATUS_WAIT_SECONDS)
-    assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=10)
+    assert k8s.wait_on_condition(ref, "Ready", "True", wait_periods=10)
 
     yield ref, resource
 
@@ -245,7 +245,7 @@ class TestDomain:
         assert cr is not None
         assert 'status' in cr
         domain.assert_endpoint(cr)
-        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=30)
+        assert k8s.wait_on_condition(ref, "Ready", "True", wait_periods=30)
 
         # now we will modify the engine version to test upgrades
         # similar to creating a new domain, this takes a long time, often 20+ minutes
@@ -287,7 +287,7 @@ class TestDomain:
                 continue
             else:
                 break
-        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=10)
+        assert k8s.wait_on_condition(ref, "Ready", "True", wait_periods=10)
         cr = k8s.get_resource(ref)
 
         assert latest['DomainStatus']['SoftwareUpdateOptions']["AutoSoftwareUpdateEnabled"] is True
