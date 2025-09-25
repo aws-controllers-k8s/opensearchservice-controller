@@ -274,8 +274,8 @@ class TestDomain:
         }
         k8s.patch_custom_resource(ref, updates)
 
-        # wait for 15 minutes, it's always going to take at least this long
-        time.sleep(MODIFY_WAIT_AFTER_SECONDS)
+        # wait for 30 minutes, it's always going to take at least this long
+        time.sleep(MODIFY_WAIT_AFTER_SECONDS*2)
         # now loop to see if it's done, with a max elapsed time so the test doesn't run forever
         count = 0
         while count < 30:
