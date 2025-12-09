@@ -145,6 +145,14 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 	updated = &resource{res}
 	updated.SetStatus(latest)
 
+	isSynced, err := rm.IsSynced(ctx, latest)
+	if err != nil {
+		return updated, err
+	}
+	if !isSynced {
+		return updated, ackrequeue.Needed(fmt.Errorf("domain is not synced"))
+	}
+
 	if latest.ko.Spec.AutoTuneOptions != nil &&
 		latest.ko.Spec.AutoTuneOptions.DesiredState != nil {
 		if ready, _ := isAutoTuneOptionReady(*latest.ko.Spec.AutoTuneOptions.DesiredState, nil); !ready {
