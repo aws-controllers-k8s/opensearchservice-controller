@@ -268,6 +268,14 @@ func (rm *resourceManager) IsSynced(ctx context.Context, res acktypes.AWSResourc
 		panic("resource manager's IsSynced() method received resource with nil CR object")
 	}
 
+	if r.ko.Status.DomainProcessingStatus == nil {
+		return false, nil
+	}
+	domainProcessingStatusCandidates := []string{"Active", "Isolated"}
+	if !ackutil.InStrings(*r.ko.Status.DomainProcessingStatus, domainProcessingStatusCandidates) {
+		return false, nil
+	}
+
 	return true, nil
 }
 
