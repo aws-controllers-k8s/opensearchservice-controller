@@ -899,7 +899,11 @@ type VPCEndpointSummary struct {
 // Service domains using a VPC (https://docs.aws.amazon.com/opensearch-service/latest/developerguide/vpc.html).
 type VPCOptions struct {
 	SecurityGroupIDs []*string `json:"securityGroupIDs,omitempty"`
-	SubnetIDs        []*string `json:"subnetIDs,omitempty"`
+	// Reference field for SecurityGroupIDs
+	SecurityGroupRefs []*ackv1alpha1.AWSResourceReferenceWrapper `json:"securityGroupRefs,omitempty"`
+	SubnetIDs         []*string                                  `json:"subnetIDs,omitempty"`
+	// Reference field for SubnetIDs
+	SubnetRefs []*ackv1alpha1.AWSResourceReferenceWrapper `json:"subnetRefs,omitempty"`
 }
 
 // A validation failure that occurred as the result of a pre-update validation

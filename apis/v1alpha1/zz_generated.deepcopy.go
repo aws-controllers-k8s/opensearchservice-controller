@@ -2984,6 +2984,17 @@ func (in *VPCOptions) DeepCopyInto(out *VPCOptions) {
 			}
 		}
 	}
+	if in.SecurityGroupRefs != nil {
+		in, out := &in.SecurityGroupRefs, &out.SecurityGroupRefs
+		*out = make([]*corev1alpha1.AWSResourceReferenceWrapper, len(*in))
+		for i := range *in {
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(corev1alpha1.AWSResourceReferenceWrapper)
+				(*in).DeepCopyInto(*out)
+			}
+		}
+	}
 	if in.SubnetIDs != nil {
 		in, out := &in.SubnetIDs, &out.SubnetIDs
 		*out = make([]*string, len(*in))
@@ -2992,6 +3003,17 @@ func (in *VPCOptions) DeepCopyInto(out *VPCOptions) {
 				in, out := &(*in)[i], &(*out)[i]
 				*out = new(string)
 				**out = **in
+			}
+		}
+	}
+	if in.SubnetRefs != nil {
+		in, out := &in.SubnetRefs, &out.SubnetRefs
+		*out = make([]*corev1alpha1.AWSResourceReferenceWrapper, len(*in))
+		for i := range *in {
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(corev1alpha1.AWSResourceReferenceWrapper)
+				(*in).DeepCopyInto(*out)
 			}
 		}
 	}

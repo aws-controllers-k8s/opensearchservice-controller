@@ -62,5 +62,15 @@ resources:
           is_ignored: true
       AccessPolicies:
         is_iam_policy: true
+      VPCOptions.SubnetIDs:
+        references:
+          service_name: ec2
+          resource: Subnet
+          path: Status.SubnetID
+      VPCOptions.SecurityGroupIDs:
+        references:
+          resource: SecurityGroup
+          path: Status.ID
+          service_name: ec2
     update_operation:
       custom_method_name: customUpdateDomain
