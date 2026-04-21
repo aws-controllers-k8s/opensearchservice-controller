@@ -72,8 +72,6 @@ func checkDomainStatus(resp *svcsdk.DescribeDomainOutput, ko *svcapitypes.Domain
 		// Setting resource synced condition to false will trigger a requeue of
 		// the resource. No need to return a requeue error here.
 		ackcondition.SetSynced(&resource{ko}, corev1.ConditionFalse, nil, nil)
-	} else {
-		ackcondition.SetSynced(&resource{ko}, corev1.ConditionTrue, nil, nil)
 	}
 }
 
@@ -149,22 +147,19 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 	updated = &resource{res}
 	updated.SetStatus(latest)
 
+	isSynced, err := rm.IsSynced(ctx, latest)
+	if err != nil {
+		return updated, err
+	}
+	if !isSynced {
+		return updated, ackrequeue.Needed(fmt.Errorf("requeueing update, domain is not synced"))
+	}
+
 	if latest.ko.Spec.AutoTuneOptions != nil &&
 		latest.ko.Spec.AutoTuneOptions.DesiredState != nil {
 		if ready, _ := isAutoTuneOptionReady(*latest.ko.Spec.AutoTuneOptions.DesiredState, nil); !ready {
 			return updated, ackrequeue.Needed(fmt.Errorf("autoTuneOption is updating"))
 		}
-	}
-
-	if domainProcessing(latest) {
-		msg := "Domain is currently processing configuration changes"
-		ackcondition.SetSynced(desired, corev1.ConditionFalse, &msg, nil)
-		return updated, requeueWaitWhileProcessing
-	}
-	if latest.ko.Status.UpgradeProcessing != nil && *latest.ko.Status.UpgradeProcessing {
-		msg := "Domain is currently upgrading software"
-		ackcondition.SetSynced(desired, corev1.ConditionFalse, &msg, nil)
-		return updated, requeueWaitWhileProcessing
 	}
 
 	if desired.ko.Spec.EngineVersion != nil && delta.DifferentAt("Spec.EngineVersion") {
