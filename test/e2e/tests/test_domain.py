@@ -45,9 +45,9 @@ CHECK_STATUS_WAIT_SECONDS = 60
 
 # It can take a LONG time for the domain's endpoint/endpoints field to be
 # returned, even after Processing=False and the ResourceSynced condition is set
-# to True on a domain. Domain resources are requeued on success which means the
-# controller will poll for latest status, including endpoint/endpoints, every
-# 30 seconds, so 2 minutes *should* be enough here.
+# to True on a domain. The controller requeues while the domain's
+# DomainProcessingStatus is not Active/Isolated, so 2 minutes *should* be
+# enough here after the domain reaches a synced state.
 CHECK_ENDPOINT_WAIT_SECONDS = 60*2
 
 
@@ -247,9 +247,9 @@ class TestDomain:
 
         cr = k8s.get_resource(ref)
         assert cr is not None
+        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=30)
         assert 'status' in cr
         domain.assert_endpoint(cr)
-        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=30)
 
         # now we will modify the engine version to test upgrades
         # similar to creating a new domain, this takes a long time, often 20+ minutes
@@ -280,18 +280,16 @@ class TestDomain:
 
         # wait for 15 minutes, it's always going to take at least this long
         time.sleep(MODIFY_WAIT_AFTER_SECONDS)
-        # now loop to see if it's done, with a max elapsed time so the test doesn't run forever
-        count = 0
-        while count < 30:
-            count += 1
-            latest = domain.get(resource.name)
-            assert latest is not None
-            if latest['DomainStatus']['UpgradeProcessing'] is True:
-                time.sleep(CHECK_STATUS_WAIT_SECONDS)
-                continue
-            else:
-                break
-        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=10)
+
+        # wait for DomainProcessing to be False
+        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=30)
+        latest = domain.get(resource.name)
+        assert latest['DomainStatus']['UpgradeProcessing'] == False
+
+        # wait for SoftwareUpdateOptions to be updated
+        time.sleep(MODIFY_WAIT_AFTER_SECONDS)
+        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=1)
+        latest = domain.get(resource.name)
         cr = k8s.get_resource(ref)
 
         assert latest['DomainStatus']['SoftwareUpdateOptions']["AutoSoftwareUpdateEnabled"] is True
@@ -338,6 +336,7 @@ class TestDomain:
 
         cr = k8s.get_resource(ref)
         assert cr is not None
+        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=30)
         assert 'status' in cr
         domain.assert_endpoint(cr)
 
@@ -358,6 +357,7 @@ class TestDomain:
 
         cr = k8s.get_resource(ref)
         assert cr is not None
+        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=30)
         assert 'status' in cr
         domain.assert_endpoints(cr)
         
