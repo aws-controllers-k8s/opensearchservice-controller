@@ -50,6 +50,11 @@ resources:
       delta_pre_compare:
         code: customPreCompare(delta, a, b)
     fields:
+      # DescribeDomain does not return masterUserOptions in the response
+      # To prevent a perpetual diff, ignore the fields from comparison
+      AdvancedSecurityOptions.MasterUserOptions:
+        compare:
+          is_ignored: true
       AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword:
         is_secret: true
       AutoTuneOptions.MaintenanceSchedules:
