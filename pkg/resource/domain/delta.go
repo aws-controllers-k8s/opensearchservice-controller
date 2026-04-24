@@ -61,7 +61,7 @@ func newResourceDelta(
 	if ackcompare.HasNilDifference(a.ko.Spec.AccessPolicies, b.ko.Spec.AccessPolicies) {
 		delta.Add("Spec.AccessPolicies", a.ko.Spec.AccessPolicies, b.ko.Spec.AccessPolicies)
 	} else if a.ko.Spec.AccessPolicies != nil && b.ko.Spec.AccessPolicies != nil {
-		if *a.ko.Spec.AccessPolicies != *b.ko.Spec.AccessPolicies {
+		if equal, err := ackcompare.IAMPolicyDocumentEqual(*a.ko.Spec.AccessPolicies, *b.ko.Spec.AccessPolicies); err != nil || !equal {
 			delta.Add("Spec.AccessPolicies", a.ko.Spec.AccessPolicies, b.ko.Spec.AccessPolicies)
 		}
 	}
@@ -125,31 +125,6 @@ func newResourceDelta(
 			} else if a.ko.Spec.AdvancedSecurityOptions.JWTOptions.SubjectKey != nil && b.ko.Spec.AdvancedSecurityOptions.JWTOptions.SubjectKey != nil {
 				if *a.ko.Spec.AdvancedSecurityOptions.JWTOptions.SubjectKey != *b.ko.Spec.AdvancedSecurityOptions.JWTOptions.SubjectKey {
 					delta.Add("Spec.AdvancedSecurityOptions.JWTOptions.SubjectKey", a.ko.Spec.AdvancedSecurityOptions.JWTOptions.SubjectKey, b.ko.Spec.AdvancedSecurityOptions.JWTOptions.SubjectKey)
-				}
-			}
-		}
-		if ackcompare.HasNilDifference(a.ko.Spec.AdvancedSecurityOptions.MasterUserOptions, b.ko.Spec.AdvancedSecurityOptions.MasterUserOptions) {
-			delta.Add("Spec.AdvancedSecurityOptions.MasterUserOptions", a.ko.Spec.AdvancedSecurityOptions.MasterUserOptions, b.ko.Spec.AdvancedSecurityOptions.MasterUserOptions)
-		} else if a.ko.Spec.AdvancedSecurityOptions.MasterUserOptions != nil && b.ko.Spec.AdvancedSecurityOptions.MasterUserOptions != nil {
-			if ackcompare.HasNilDifference(a.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserARN, b.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserARN) {
-				delta.Add("Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserARN", a.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserARN, b.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserARN)
-			} else if a.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserARN != nil && b.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserARN != nil {
-				if *a.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserARN != *b.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserARN {
-					delta.Add("Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserARN", a.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserARN, b.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserARN)
-				}
-			}
-			if ackcompare.HasNilDifference(a.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserName, b.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserName) {
-				delta.Add("Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserName", a.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserName, b.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserName)
-			} else if a.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserName != nil && b.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserName != nil {
-				if *a.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserName != *b.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserName {
-					delta.Add("Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserName", a.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserName, b.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserName)
-				}
-			}
-			if ackcompare.HasNilDifference(a.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword, b.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword) {
-				delta.Add("Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword", a.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword, b.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword)
-			} else if a.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword != nil && b.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword != nil {
-				if *a.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword != *b.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword {
-					delta.Add("Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword", a.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword, b.ko.Spec.AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword)
 				}
 			}
 		}
