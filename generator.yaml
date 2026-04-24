@@ -60,5 +60,7 @@ resources:
       AutoTuneOptions.MaintenanceSchedules:
         compare:
           is_ignored: true
+      AccessPolicies:
+        is_iam_policy: true
     update_operation:
       custom_method_name: customUpdateDomain
