@@ -18,12 +18,20 @@ import time
 import typing
 
 import boto3
+from botocore.config import Config
 import pytest
 
 DEFAULT_WAIT_UNTIL_TIMEOUT_SECONDS = 60*30
 DEFAULT_WAIT_UNTIL_INTERVAL_SECONDS = 20
-DEFAULT_WAIT_UNTIL_DELETED_TIMEOUT_SECONDS = 60*20
+DEFAULT_WAIT_UNTIL_DELETED_TIMEOUT_SECONDS = 60*30
 DEFAULT_WAIT_UNTIL_DELETED_INTERVAL_SECONDS = 15
+
+# The e2e suite runs these polling helpers across several parallel pytest-xdist
+# workers, so the aggregate DescribeDomain call rate can trip
+# ThrottlingException. Bump the retry attempt count above the boto3 default (3)
+# so transient throttling is absorbed by the SDK's backoff rather than
+# surfacing as a test failure.
+_RETRY_CONFIG = Config(retries={"max_attempts": 10, "mode": "standard"})
 
 DomainMatchFunc = typing.NewType(
     'DomainMatchFunc',
@@ -118,7 +126,7 @@ def get(domain_name):
 
     If no such domain exists, returns None.
     """
-    c = boto3.client('opensearch')
+    c = boto3.client('opensearch', config=_RETRY_CONFIG)
     try:
         resp = c.describe_domain(DomainName=domain_name)
         assert 'DomainStatus' in resp
@@ -131,7 +139,7 @@ def get_config(domain_name):
 
     if no such domain exists, returns None.
     """
-    c = boto3.client('opensearch')
+    c = boto3.client('opensearch', config=_RETRY_CONFIG)
     try:
         resp = c.describe_domain_config(DomainName=domain_name)
         assert 'DomainConfig' in resp
@@ -144,7 +152,7 @@ def list_tags(domain_arn):
 
     if no such domain exists, returns None.
     """
-    c = boto3.client('opensearch')
+    c = boto3.client('opensearch', config=_RETRY_CONFIG)
     try:
         resp = c.list_tags(ARN=domain_arn)
         assert 'TagList' in resp
