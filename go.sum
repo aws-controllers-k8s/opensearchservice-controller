@@ -1,7 +1,11 @@
 github.com/Masterminds/semver/v3 v3.4.0 h1:Zog+i5UMtVoCU8oKka5P7i9q9HgrJeGzI9SA1Xbatp0=
 github.com/Masterminds/semver/v3 v3.4.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
+github.com/aws-controllers-k8s/cognitoidentityprovider-controller v1.3.1 h1:mW8r89E4TCbPYzBNli++7aPpdAHxgQ6D+OlH/j4ys+Q=
+github.com/aws-controllers-k8s/cognitoidentityprovider-controller v1.3.1/go.mod h1:8xTY1YTcoqPFbTAd7jyMWSRctF7VNU+NTkU+hPuVXr4=
 github.com/aws-controllers-k8s/ec2-controller v1.11.0 h1:d+SU4q3u/ZaSMv6VfcyKhm4/G7iD1n/9BSbHo2DALzU=
 github.com/aws-controllers-k8s/ec2-controller v1.11.0/go.mod h1:ns/Bo96xyeONsK9B7rku9IiUUVGNTCcl80lj8xd20as=
+github.com/aws-controllers-k8s/iam-controller v1.6.2 h1:kDiG6CIx07IPn4BBI8k3JRvip/pQ8loXU51Ptans31g=
+github.com/aws-controllers-k8s/iam-controller v1.6.2/go.mod h1:4YdmWzfmXrlquVpnv48z+dADaDOh35IevLbLCSAngeQ=
 github.com/aws-controllers-k8s/runtime v0.60.0 h1:obCtliXzv+HqpVwEHZ388wC7uBDVdGWeuK8DMHcPcIE=
 github.com/aws-controllers-k8s/runtime v0.60.0/go.mod h1:ljWD1IdtVx/qC7C4lVobF4vLNhno/xX5A78BOke1Ksk=
 github.com/aws/aws-sdk-go v1.55.5 h1:KKUZBfBoyqy5d3swXyiC7Q76ic40rYcbqH7qjh59kzU=

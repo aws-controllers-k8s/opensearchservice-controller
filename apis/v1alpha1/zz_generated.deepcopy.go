@@ -724,10 +724,20 @@ func (in *CognitoOptions) DeepCopyInto(out *CognitoOptions) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.RoleRef != nil {
+		in, out := &in.RoleRef, &out.RoleRef
+		*out = new(corev1alpha1.AWSResourceReferenceWrapper)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.UserPoolID != nil {
 		in, out := &in.UserPoolID, &out.UserPoolID
 		*out = new(string)
 		**out = **in
+	}
+	if in.UserPoolRef != nil {
+		in, out := &in.UserPoolRef, &out.UserPoolRef
+		*out = new(corev1alpha1.AWSResourceReferenceWrapper)
+		(*in).DeepCopyInto(*out)
 	}
 }
 

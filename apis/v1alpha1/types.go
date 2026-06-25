@@ -274,7 +274,11 @@ type CognitoOptions struct {
 	Enabled        *bool   `json:"enabled,omitempty"`
 	IdentityPoolID *string `json:"identityPoolID,omitempty"`
 	RoleARN        *string `json:"roleARN,omitempty"`
-	UserPoolID     *string `json:"userPoolID,omitempty"`
+	// Reference field for RoleARN
+	RoleRef    *ackv1alpha1.AWSResourceReferenceWrapper `json:"roleRef,omitempty"`
+	UserPoolID *string                                  `json:"userPoolID,omitempty"`
+	// Reference field for UserPoolID
+	UserPoolRef *ackv1alpha1.AWSResourceReferenceWrapper `json:"userPoolRef,omitempty"`
 }
 
 // The status of the Cognito options for the specified domain.

@@ -72,5 +72,15 @@ resources:
           resource: SecurityGroup
           path: Status.ID
           service_name: ec2
+      CognitoOptions.RoleARN:
+        references:
+          resource: Role
+          service_name: iam
+          path: Status.ACKResourceMetadata.ARN
+      CognitoOptions.UserPoolID:
+        references:
+          resource: UserPool
+          service_name: cognitoidentityprovider
+          path: Status.ID
     update_operation:
       custom_method_name: customUpdateDomain
