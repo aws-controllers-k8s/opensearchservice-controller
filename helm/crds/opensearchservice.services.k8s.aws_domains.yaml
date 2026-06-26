@@ -268,8 +268,36 @@ spec:
                     type: string
                   roleARN:
                     type: string
+                  roleRef:
+                    description: Reference field for RoleARN
+                    properties:
+                      from:
+                        description: |-
+                          AWSResourceReference provides all the values necessary to reference another
+                          k8s resource for finding the identifier(Id/ARN/Name)
+                        properties:
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                        type: object
+                    type: object
                   userPoolID:
                     type: string
+                  userPoolRef:
+                    description: Reference field for UserPoolID
+                    properties:
+                      from:
+                        description: |-
+                          AWSResourceReference provides all the values necessary to reference another
+                          k8s resource for finding the identifier(Id/ARN/Name)
+                        properties:
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                        type: object
+                    type: object
                 type: object
               domainEndpointOptions:
                 description: |-
