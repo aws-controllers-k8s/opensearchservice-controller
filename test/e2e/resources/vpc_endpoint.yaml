@@ -1,0 +1,10 @@
+apiVersion: opensearchservice.services.k8s.aws/v1alpha1
+kind: VpcEndpoint
+metadata:
+  name: $VPC_ENDPOINT_NAME
+spec:
+  domainRef:
+    from:
+      name: $DOMAIN_NAME
+  vpcOptions:
+    subnetIDs: $SUBNETS

@@ -1,12 +1,28 @@
 sdk_names:
   model_name: opensearch
   package_name: opensearch
+operations:
+  # DescribeVpcEndpoints filters by VpcEndpointIds and returns full VpcEndpoint
+  # objects, so it is the correct ReadMany op. Without this override the
+  # generator would otherwise pick the alphabetically-later ListVpcEndpoints,
+  # which lists every endpoint in the account with no identifier filter.
+  # output_wrapper_field_path disambiguates the two list members in the output
+  # shape (VpcEndpoints vs VpcEndpointErrors).
+  DescribeVpcEndpoints:
+    operation_type:
+      - List
+    resource_name: VpcEndpoint
+    output_wrapper_field_path: VpcEndpoints
 ignore:
+  operations:
+    # ListVpcEndpoints lists all endpoints with no identifier filter; use
+    # DescribeVpcEndpoints (configured above) as the ReadMany op instead.
+    - ListVpcEndpoints
   resource_names:
     - Package
     # - Domain
     - OutboundConnection
-    - VpcEndpoint
+    # - VpcEndpoint
     - Application
   field_paths:
     # SnapshotOptions is irrelevant for OpenSearch 5.3+
@@ -14,6 +30,8 @@ ignore:
     - CreateDomainInput.IdentityCenterOptions
     - ClusterConfig.NodeOptions
     - CreateDomainOutput.DomainStatus.IdentityCenterOptions
+    # ClientToken is a K8s-irrelevant idempotency token
+    - CreateVpcEndpointInput.ClientToken
 resources:
   Domain:
     renames:
@@ -74,3 +92,34 @@ resources:
           service_name: ec2
     update_operation:
       custom_method_name: customUpdateDomain
+  VpcEndpoint:
+    synced:
+      when:
+      - path: Status.Status
+        in: [ "ACTIVE" ]
+    exceptions:
+      errors:
+        404:
+          code: ResourceNotFoundException
+      terminal_codes:
+        - ValidationException
+    tags:
+      ignore: true
+    fields:
+      # DomainARN is set at creation and cannot be changed via UpdateVpcEndpoint;
+      # a change would orphan the existing endpoint, so treat it as immutable.
+      DomainARN:
+        references:
+          resource: Domain
+          path: Status.ACKResourceMetadata.ARN
+        is_immutable: true
+      VPCOptions.SubnetIDs:
+        references:
+          service_name: ec2
+          resource: Subnet
+          path: Status.SubnetID
+      VPCOptions.SecurityGroupIDs:
+        references:
+          service_name: ec2
+          resource: SecurityGroup
+          path: Status.ID

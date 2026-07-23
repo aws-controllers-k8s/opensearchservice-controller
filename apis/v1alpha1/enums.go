@@ -600,16 +600,16 @@ const (
 	VPCEndpointErrorCode_SERVER_ERROR       VPCEndpointErrorCode = "SERVER_ERROR"
 )
 
-type VPCEndpointStatus string
+type VPCEndpointStatus_SDK string
 
 const (
-	VPCEndpointStatus_ACTIVE        VPCEndpointStatus = "ACTIVE"
-	VPCEndpointStatus_CREATE_FAILED VPCEndpointStatus = "CREATE_FAILED"
-	VPCEndpointStatus_CREATING      VPCEndpointStatus = "CREATING"
-	VPCEndpointStatus_DELETE_FAILED VPCEndpointStatus = "DELETE_FAILED"
-	VPCEndpointStatus_DELETING      VPCEndpointStatus = "DELETING"
-	VPCEndpointStatus_UPDATE_FAILED VPCEndpointStatus = "UPDATE_FAILED"
-	VPCEndpointStatus_UPDATING      VPCEndpointStatus = "UPDATING"
+	VPCEndpointStatus_SDK_ACTIVE        VPCEndpointStatus_SDK = "ACTIVE"
+	VPCEndpointStatus_SDK_CREATE_FAILED VPCEndpointStatus_SDK = "CREATE_FAILED"
+	VPCEndpointStatus_SDK_CREATING      VPCEndpointStatus_SDK = "CREATING"
+	VPCEndpointStatus_SDK_DELETE_FAILED VPCEndpointStatus_SDK = "DELETE_FAILED"
+	VPCEndpointStatus_SDK_DELETING      VPCEndpointStatus_SDK = "DELETING"
+	VPCEndpointStatus_SDK_UPDATE_FAILED VPCEndpointStatus_SDK = "UPDATE_FAILED"
+	VPCEndpointStatus_SDK_UPDATING      VPCEndpointStatus_SDK = "UPDATING"
 )
 
 type VolumeType string

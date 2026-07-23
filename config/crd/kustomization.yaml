@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - common
   - bases/opensearchservice.services.k8s.aws_domains.yaml
+  - bases/opensearchservice.services.k8s.aws_vpcendpoints.yaml
