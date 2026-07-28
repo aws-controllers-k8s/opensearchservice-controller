@@ -1,5 +1,5 @@
 apiVersion: opensearchservice.services.k8s.aws/v1alpha1
-kind: VpcEndpoint
+kind: VPCEndpoint
 metadata:
   name: $VPC_ENDPOINT_NAME
 spec:
