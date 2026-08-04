@@ -58,6 +58,20 @@ type DomainSpec struct {
 	AdvancedOptions map[string]*string `json:"advancedOptions,omitempty"`
 	// Options for fine-grained access control.
 	AdvancedSecurityOptions *AdvancedSecurityOptionsInput `json:"advancedSecurityOptions,omitempty"`
+	// The AWS accounts and services authorized to access the domain through its
+	// interface VPC endpoints.
+	//
+	// Each entry's principal is either a 12-digit AWS account ID or an AWS service
+	// principal (for example application.opensearchservice.amazonaws.com), which
+	// the controller passes to AuthorizeVpcEndpointAccess and
+	// RevokeVpcEndpointAccess respectively. An entry's serviceOptions scope the
+	// authorization to specific Regions; the principal is re-authorized when the
+	// domain reports that one of those Regions is not authorized.
+	//
+	// Leave this field unset to let VPC endpoint access be managed outside of ACK:
+	// existing authorizations are then neither read back nor revoked. Set it to an
+	// empty list to revoke every authorization.
+	AuthorizedPrincipals []*AuthorizedPrincipal `json:"authorizedPrincipals,omitempty"`
 	// Options for Auto-Tune.
 	AutoTuneOptions *AutoTuneOptionsInput `json:"autoTuneOptions,omitempty"`
 	// Container for the cluster configuration of a domain.

@@ -159,7 +159,54 @@ def list_tags(domain_arn):
         return resp
     except c.exceptions.ResourceNotFoundException:
         return None
-    
+
+
+def list_vpc_endpoint_access(domain_name):
+    """Returns the set of principals authorized to access the domain's VPC
+    endpoints.
+    """
+    c = boto3.client('opensearch', config=_RETRY_CONFIG)
+    principals = set()
+    next_token = None
+    while True:
+        kwargs = {'DomainName': domain_name}
+        if next_token:
+            kwargs['NextToken'] = next_token
+        resp = c.list_vpc_endpoint_access(**kwargs)
+        for p in resp.get('AuthorizedPrincipalList', []):
+            principals.add(p.get('Principal', ''))
+        token = resp.get('NextToken')
+        if not token or token == next_token:
+            break
+        next_token = token
+    return principals
+
+
+def wait_until_vpc_endpoint_access(
+        domain_name: str,
+        principal: str,
+        authorized: bool,
+        timeout_seconds: int = 60*5,
+        interval_seconds: int = DEFAULT_WAIT_UNTIL_INTERVAL_SECONDS,
+    ) -> None:
+    """Waits until the supplied principal is authorized, or no longer
+    authorized, to access the domain's VPC endpoints.
+
+    Raises:
+        pytest.fail upon timeout
+    """
+    now = datetime.datetime.now()
+    timeout = now + datetime.timedelta(seconds=timeout_seconds)
+
+    while (principal in list_vpc_endpoint_access(domain_name)) != authorized:
+        if datetime.datetime.now() >= timeout:
+            pytest.fail(
+                f"failed to see principal {principal} "
+                f"{'authorized' if authorized else 'revoked'} on domain "
+                f"{domain_name} before timeout"
+            )
+        time.sleep(interval_seconds)
+
 
 # Apparently, there is an 'endpoint' and an 'endpoints' field for a domain.
 # The 'endpoint' field is filled in with a URL when the domain does *not* use

@@ -171,6 +171,40 @@ spec:
                         type: string
                     type: object
                 type: object
+              authorizedPrincipals:
+                description: |-
+                  The AWS accounts and services authorized to access the domain through its
+                  interface VPC endpoints.
+
+                  Each entry's principal is either a 12-digit AWS account ID or an AWS service
+                  principal (for example application.opensearchservice.amazonaws.com), which
+                  the controller passes to AuthorizeVpcEndpointAccess and
+                  RevokeVpcEndpointAccess respectively. An entry's serviceOptions scope the
+                  authorization to specific Regions; the principal is re-authorized when the
+                  domain reports that one of those Regions is not authorized.
+
+                  Leave this field unset to let VPC endpoint access be managed outside of ACK:
+                  existing authorizations are then neither read back nor revoked. Set it to an
+                  empty list to revoke every authorization.
+                items:
+                  description: |-
+                    Information about an Amazon Web Services account or service that has access
+                    to an Amazon OpenSearch Service domain through the use of an interface VPC
+                    endpoint.
+                  properties:
+                    principal:
+                      type: string
+                    serviceOptions:
+                      description: Options for the service, such as the supported
+                        Regions.
+                      properties:
+                        supportedRegions:
+                          items:
+                            type: string
+                          type: array
+                      type: object
+                  type: object
+                type: array
               autoTuneOptions:
                 description: Options for Auto-Tune.
                 properties:

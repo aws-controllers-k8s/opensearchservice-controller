@@ -92,6 +92,24 @@ const (
 	AutoTuneType_SCHEDULED_ACTION AutoTuneType = "SCHEDULED_ACTION"
 )
 
+type CapabilityFailureReason string
+
+const (
+	CapabilityFailureReason_KMS_KEY_INSUFFICIENT_PERMISSION CapabilityFailureReason = "KMS_KEY_INSUFFICIENT_PERMISSION"
+)
+
+type CapabilityStatus string
+
+const (
+	CapabilityStatus_active        CapabilityStatus = "active"
+	CapabilityStatus_create_failed CapabilityStatus = "create_failed"
+	CapabilityStatus_creating      CapabilityStatus = "creating"
+	CapabilityStatus_delete_failed CapabilityStatus = "delete_failed"
+	CapabilityStatus_deleting      CapabilityStatus = "deleting"
+	CapabilityStatus_update_failed CapabilityStatus = "update_failed"
+	CapabilityStatus_updating      CapabilityStatus = "updating"
+)
+
 type ConfigChangeStatus string
 
 const (
@@ -112,6 +130,14 @@ const (
 	ConnectionMode_VPC_ENDPOINT ConnectionMode = "VPC_ENDPOINT"
 )
 
+type DataSourceAttachmentStatus string
+
+const (
+	DataSourceAttachmentStatus_ATTACHED DataSourceAttachmentStatus = "ATTACHED"
+	DataSourceAttachmentStatus_FAILED   DataSourceAttachmentStatus = "FAILED"
+	DataSourceAttachmentStatus_PENDING  DataSourceAttachmentStatus = "PENDING"
+)
+
 type DataSourceStatus string
 
 const (
@@ -127,6 +153,13 @@ const (
 	DeploymentStatus_IN_PROGRESS    DeploymentStatus = "IN_PROGRESS"
 	DeploymentStatus_NOT_ELIGIBLE   DeploymentStatus = "NOT_ELIGIBLE"
 	DeploymentStatus_PENDING_UPDATE DeploymentStatus = "PENDING_UPDATE"
+)
+
+type DeploymentStrategy string
+
+const (
+	DeploymentStrategy_CapacityOptimized DeploymentStrategy = "CapacityOptimized"
+	DeploymentStrategy_Default           DeploymentStrategy = "Default"
 )
 
 type DescribePackagesFilterName string
@@ -179,11 +212,27 @@ const (
 	DomainState_Processing   DomainState = "Processing"
 )
 
+type DomainUseCase string
+
+const (
+	DomainUseCase_MIXED         DomainUseCase = "MIXED"
+	DomainUseCase_OBSERVABILITY DomainUseCase = "OBSERVABILITY"
+	DomainUseCase_SEARCH        DomainUseCase = "SEARCH"
+	DomainUseCase_VECTOR        DomainUseCase = "VECTOR"
+)
+
 type DryRunMode string
 
 const (
 	DryRunMode_Basic   DryRunMode = "Basic"
 	DryRunMode_Verbose DryRunMode = "Verbose"
+)
+
+type EngineMode string
+
+const (
+	EngineMode_GENERAL   EngineMode = "GENERAL"
+	EngineMode_OPTIMIZED EngineMode = "OPTIMIZED"
 )
 
 type EngineType string
@@ -213,11 +262,84 @@ const (
 	InboundConnectionStatusCode_REJECTING          InboundConnectionStatusCode = "REJECTING"
 )
 
+type IndexStatus string
+
+const (
+	IndexStatus_CREATED IndexStatus = "CREATED"
+	IndexStatus_DELETED IndexStatus = "DELETED"
+	IndexStatus_UPDATED IndexStatus = "UPDATED"
+)
+
 type InitiatedBy string
 
 const (
 	InitiatedBy_CUSTOMER InitiatedBy = "CUSTOMER"
 	InitiatedBy_SERVICE  InitiatedBy = "SERVICE"
+)
+
+type InsightEntityType string
+
+const (
+	InsightEntityType_Account    InsightEntityType = "Account"
+	InsightEntityType_DomainName InsightEntityType = "DomainName"
+)
+
+type InsightFeedbackEntityType string
+
+const (
+	InsightFeedbackEntityType_DomainName InsightFeedbackEntityType = "DomainName"
+)
+
+type InsightFeedbackThumbs string
+
+const (
+	InsightFeedbackThumbs_Down InsightFeedbackThumbs = "Down"
+	InsightFeedbackThumbs_Up   InsightFeedbackThumbs = "Up"
+)
+
+type InsightFieldType string
+
+const (
+	InsightFieldType_metric InsightFieldType = "metric"
+	InsightFieldType_text   InsightFieldType = "text"
+)
+
+type InsightPriorityLevel string
+
+const (
+	InsightPriorityLevel_CRITICAL InsightPriorityLevel = "CRITICAL"
+	InsightPriorityLevel_HIGH     InsightPriorityLevel = "HIGH"
+	InsightPriorityLevel_LOW      InsightPriorityLevel = "LOW"
+	InsightPriorityLevel_MEDIUM   InsightPriorityLevel = "MEDIUM"
+)
+
+type InsightResponseStatus string
+
+const (
+	InsightResponseStatus_ERROR   InsightResponseStatus = "ERROR"
+	InsightResponseStatus_SUCCESS InsightResponseStatus = "SUCCESS"
+)
+
+type InsightSortOrder string
+
+const (
+	InsightSortOrder_ASC  InsightSortOrder = "ASC"
+	InsightSortOrder_DESC InsightSortOrder = "DESC"
+)
+
+type InsightStatus string
+
+const (
+	InsightStatus_ACTIVE    InsightStatus = "ACTIVE"
+	InsightStatus_DISMISSED InsightStatus = "DISMISSED"
+	InsightStatus_RESOLVED  InsightStatus = "RESOLVED"
+)
+
+type InsightType string
+
+const (
+	InsightType_EVENT          InsightType = "EVENT"
+	InsightType_RECOMMENDATION InsightType = "RECOMMENDATION"
 )
 
 type LogType string
@@ -293,6 +415,7 @@ const (
 	NodeType_Data      NodeType = "Data"
 	NodeType_Master    NodeType = "Master"
 	NodeType_Ultrawarm NodeType = "Ultrawarm"
+	NodeType_Warm      NodeType = "Warm"
 )
 
 type OpenSearchPartitionInstanceType string
@@ -473,6 +596,15 @@ const (
 	PackageType_ZIP_PLUGIN      PackageType = "ZIP-PLUGIN"
 )
 
+type PauseState string
+
+const (
+	PauseState_Active    PauseState = "Active"
+	PauseState_Completed PauseState = "Completed"
+	PauseState_Disabled  PauseState = "Disabled"
+	PauseState_Scheduled PauseState = "Scheduled"
+)
+
 type PrincipalType string
 
 const (
@@ -565,9 +697,10 @@ const (
 type TLSSecurityPolicy string
 
 const (
-	TLSSecurityPolicy_Policy_Min_TLS_1_0_2019_07     TLSSecurityPolicy = "Policy-Min-TLS-1-0-2019-07"
-	TLSSecurityPolicy_Policy_Min_TLS_1_2_2019_07     TLSSecurityPolicy = "Policy-Min-TLS-1-2-2019-07"
-	TLSSecurityPolicy_Policy_Min_TLS_1_2_PFS_2023_10 TLSSecurityPolicy = "Policy-Min-TLS-1-2-PFS-2023-10"
+	TLSSecurityPolicy_Policy_Min_TLS_1_0_2019_07              TLSSecurityPolicy = "Policy-Min-TLS-1-0-2019-07"
+	TLSSecurityPolicy_Policy_Min_TLS_1_2_2019_07              TLSSecurityPolicy = "Policy-Min-TLS-1-2-2019-07"
+	TLSSecurityPolicy_Policy_Min_TLS_1_2_PFS_2023_10          TLSSecurityPolicy = "Policy-Min-TLS-1-2-PFS-2023-10"
+	TLSSecurityPolicy_Policy_Min_TLS_1_2_RFC9151_FIPS_2024_08 TLSSecurityPolicy = "Policy-Min-TLS-1-2-RFC9151-FIPS-2024-08"
 )
 
 type TimeUnit string

@@ -23,6 +23,7 @@ from typing import Dict, Optional
 
 from acktest.resources import random_suffix_name
 from acktest.k8s import resource as k8s
+from acktest.aws.identity import get_region
 from acktest import tags
 import pytest
 
@@ -465,5 +466,51 @@ class TestDomain:
             expected=updated_tags,
             actual=latest_tags,
         )
+
+    def test_authorized_principals_es_2d3m_multi_az_vpc_2_subnet7_9(self, es_2d3m_multi_az_vpc_2_subnet7_9_domain):
+        ref, resource = es_2d3m_multi_az_vpc_2_subnet7_9_domain
+        unmanaged_wait_after_seconds = 60
+        service_principal = "application.opensearchservice.amazonaws.com"
+
+        time.sleep(CHECK_ENDPOINT_WAIT_SECONDS)
+        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=30)
+
+        updates = {
+            "spec": {
+                "authorizedPrincipals": [
+                    {
+                        "principal": service_principal,
+                        "serviceOptions": {
+                            "supportedRegions": [get_region()],
+                        },
+                    }
+                ]
+            }
+        }
+        k8s.patch_custom_resource(ref, updates)
+
+        domain.wait_until_vpc_endpoint_access(resource.name, service_principal, True)
+        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=10)
+
+        updates = {
+            "spec": {
+                "authorizedPrincipals": None
+            }
+        }
+        k8s.patch_custom_resource(ref, updates)
+
+        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=10)
+        time.sleep(unmanaged_wait_after_seconds)
+        assert service_principal in domain.list_vpc_endpoint_access(resource.name)
+
+        updates = {
+            "spec": {
+                "authorizedPrincipals": []
+            }
+        }
+        k8s.patch_custom_resource(ref, updates)
+
+        domain.wait_until_vpc_endpoint_access(resource.name, service_principal, False)
+        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=10)
 
 

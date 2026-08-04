@@ -20,6 +20,8 @@ ignore:
     - ListVpcEndpoints
   resource_names:
     - Package
+    # Index management is a data plane concern, not control plane
+    - Index
     # - Domain
     - OutboundConnection
     # - VpcEndpoint
@@ -32,6 +34,27 @@ ignore:
     - CreateDomainOutput.DomainStatus.IdentityCenterOptions
     # ClientToken is a K8s-irrelevant idempotency token
     - CreateVpcEndpointInput.ClientToken
+    # AWS returns PrincipalType as "AWS Account"/"AWS Service", not the modelled
+    # enum, so exposing it would drift forever. It is derivable from the principal.
+    - AuthorizedPrincipal.PrincipalType
+    # Fields the SDK bump brought in. Exposing them needs late_initialize for the
+    # ones DescribeDomain returns server-set values for, so they are ignored here.
+    - AIMLOptionsInput.S3VectorsEngine
+    - AIMLOptionsInput.ServerlessVectorAcceleration
+    - AdvancedSecurityOptions.IAMFederationOptions
+    - AdvancedSecurityOptionsInput.IAMFederationOptions
+    - CreateDomainInput.DeploymentStrategyOptions
+    - CreateDomainOutput.DomainStatus.DeploymentStrategyOptions
+    - SoftwareUpdateOptions.UseLatestServiceSoftwareForBlueGreen
+    - CreateDomainInput.AutomatedSnapshotPauseOptions
+    - CreateDomainOutput.DomainStatus.AutomatedSnapshotPauseOptions
+    - CreateDomainInput.EngineMode
+    - CreateDomainOutput.DomainStatus.EngineMode
+    - CreateDomainInput.UseCase
+    - CreateDomainOutput.DomainStatus.UseCase
+    - JWTOptionsInput.JwksUrl
+    - VPCOptions.EgressEnabled
+    - VPCDerivedInfo.EgressEnabled
 resources:
   Domain:
     renames:
@@ -90,6 +113,12 @@ resources:
           resource: SecurityGroup
           path: Status.ID
           service_name: ec2
+      AuthorizedPrincipals:
+        from:
+          operation: ListVpcEndpointAccess
+          path: AuthorizedPrincipalList
+        compare:
+          is_ignored: true
     update_operation:
       custom_method_name: customUpdateDomain
   VpcEndpoint:

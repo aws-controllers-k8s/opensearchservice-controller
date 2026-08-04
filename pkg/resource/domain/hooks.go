@@ -17,10 +17,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 
 	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
 	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
 	ackcondition "github.com/aws-controllers-k8s/runtime/pkg/condition"
+	ackerr "github.com/aws-controllers-k8s/runtime/pkg/errors"
 	ackrequeue "github.com/aws-controllers-k8s/runtime/pkg/requeue"
 	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -54,7 +56,73 @@ func customPreCompare(delta *ackcompare.Delta, a *resource, b *resource) {
 			}
 		}
 	}
+	// A nil list means unmanaged; an empty list means authorize nothing.
+	if a.ko.Spec.AuthorizedPrincipals != nil {
+		added, removed := authorizedPrincipalsDiff(a.ko.Spec.AuthorizedPrincipals, b.ko.Spec.AuthorizedPrincipals)
+		if len(added) > 0 || len(removed) > 0 {
+			delta.Add("Spec.AuthorizedPrincipals", a.ko.Spec.AuthorizedPrincipals, b.ko.Spec.AuthorizedPrincipals)
+		}
+	}
 }
+
+// authorizedPrincipalsDiff returns the principals to authorize and to revoke,
+// keyed on the principal value so ordering does not matter.
+func authorizedPrincipalsDiff(desired, latest []*svcapitypes.AuthorizedPrincipal) (added, removed []*svcapitypes.AuthorizedPrincipal) {
+	latestByPrincipal := make(map[string]*svcapitypes.AuthorizedPrincipal, len(latest))
+	for _, p := range latest {
+		latestByPrincipal[aws.ToString(p.Principal)] = p
+	}
+	desiredSet := make(map[string]bool, len(desired))
+	for _, p := range desired {
+		principal := aws.ToString(p.Principal)
+		if desiredSet[principal] {
+			continue
+		}
+		desiredSet[principal] = true
+		observed, found := latestByPrincipal[principal]
+		if !found || supportedRegionsMissing(p.ServiceOptions, observed.ServiceOptions) {
+			added = append(added, p)
+		}
+	}
+	for _, p := range latest {
+		if !desiredSet[aws.ToString(p.Principal)] {
+			removed = append(removed, p)
+		}
+	}
+	return added, removed
+}
+
+// supportedRegionsMissing reports whether AWS reports regions for a principal
+// but not one the spec asks for.
+func supportedRegionsMissing(desired, observed *svcapitypes.ServiceOptions) bool {
+	desiredRegions := supportedRegionSet(desired)
+	observedRegions := supportedRegionSet(observed)
+	if len(desiredRegions) == 0 || len(observedRegions) == 0 {
+		return false
+	}
+	for region := range desiredRegions {
+		if !observedRegions[region] {
+			return true
+		}
+	}
+	return false
+}
+
+func supportedRegionSet(options *svcapitypes.ServiceOptions) map[string]bool {
+	if options == nil {
+		return nil
+	}
+	regions := make(map[string]bool, len(options.SupportedRegions))
+	for _, r := range options.SupportedRegions {
+		if region := aws.ToString(r); region != "" {
+			regions[region] = true
+		}
+	}
+	return regions
+}
+
+// awsAccountIDRegexp matches a bare 12-digit AWS account ID.
+var awsAccountIDRegexp = regexp.MustCompile(`^\d{12}$`)
 
 func checkDomainStatus(resp *svcsdk.DescribeDomainOutput, ko *svcapitypes.Domain) {
 	if resp.DomainStatus.AutoTuneOptions != nil {
@@ -213,7 +281,19 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		}
 	}
 
-	if !delta.DifferentExcept("Spec.Tags") {
+	// AuthorizedPrincipals are not part of UpdateDomainConfig.
+	if delta.DifferentAt("Spec.AuthorizedPrincipals") {
+		err = rm.syncVPCEndpointAuthorizedPrincipals(
+			ctx,
+			*latest.ko.Spec.Name,
+			desired.ko.Spec.AuthorizedPrincipals, latest.ko.Spec.AuthorizedPrincipals,
+		)
+		if err != nil {
+			return desired, err
+		}
+	}
+
+	if !delta.DifferentExcept("Spec.Tags", "Spec.AuthorizedPrincipals") {
 		return desired, nil
 	}
 
@@ -812,4 +892,116 @@ func int64OrNil(num *int32) *int64 {
 	}
 
 	return aws.Int64(int64(*num))
+}
+
+// getVPCEndpointAuthorizedPrincipals pages through ListVpcEndpointAccess.
+func (rm *resourceManager) getVPCEndpointAuthorizedPrincipals(
+	ctx context.Context,
+	domainName string,
+) (principals []*svcapitypes.AuthorizedPrincipal, err error) {
+	rlog := ackrtlog.FromContext(ctx)
+	exit := rlog.Trace("rm.getVPCEndpointAuthorizedPrincipals")
+	defer func() { exit(err) }()
+
+	var nextToken *string
+	for {
+		var resp *svcsdk.ListVpcEndpointAccessOutput
+		resp, err = rm.sdkapi.ListVpcEndpointAccess(
+			ctx,
+			&svcsdk.ListVpcEndpointAccessInput{
+				DomainName: aws.String(domainName),
+				NextToken:  nextToken,
+			},
+		)
+		rm.metrics.RecordAPICall("READ_MANY", "ListVpcEndpointAccess", err)
+		if err != nil {
+			return nil, err
+		}
+		for i := range resp.AuthorizedPrincipalList {
+			p := resp.AuthorizedPrincipalList[i]
+			if p.Principal == nil || *p.Principal == "" {
+				continue
+			}
+			principal := &svcapitypes.AuthorizedPrincipal{
+				Principal: p.Principal,
+			}
+			if p.ServiceOptions != nil {
+				principal.ServiceOptions = &svcapitypes.ServiceOptions{
+					SupportedRegions: aws.StringSlice(p.ServiceOptions.SupportedRegions),
+				}
+			}
+			principals = append(principals, principal)
+		}
+		// The response shape always carries a NextToken.
+		if aws.ToString(resp.NextToken) == "" ||
+			aws.ToString(resp.NextToken) == aws.ToString(nextToken) {
+			break
+		}
+		nextToken = resp.NextToken
+	}
+	return principals, nil
+}
+
+// syncVPCEndpointAuthorizedPrincipals authorizes and revokes principals to
+// match the desired list.
+func (rm *resourceManager) syncVPCEndpointAuthorizedPrincipals(
+	ctx context.Context,
+	domainName string,
+	desired []*svcapitypes.AuthorizedPrincipal,
+	latest []*svcapitypes.AuthorizedPrincipal,
+) (err error) {
+	rlog := ackrtlog.FromContext(ctx)
+	exit := rlog.Trace("rm.syncVPCEndpointAuthorizedPrincipals")
+	defer func() { exit(err) }()
+
+	// Validate up front so a bad entry cannot half-apply the rest.
+	for _, p := range desired {
+		if aws.ToString(p.Principal) == "" {
+			err = ackerr.NewTerminalError(
+				errors.New("authorizedPrincipals entries must set a non-empty principal"),
+			)
+			return err
+		}
+	}
+
+	added, removed := authorizedPrincipalsDiff(desired, latest)
+
+	for _, p := range added {
+		input := &svcsdk.AuthorizeVpcEndpointAccessInput{DomainName: aws.String(domainName)}
+		input.Account, input.Service = vpcEndpointAccessPrincipal(aws.ToString(p.Principal))
+		if p.ServiceOptions != nil {
+			input.ServiceOptions = &svcsdktypes.ServiceOptions{
+				SupportedRegions: aws.ToStringSlice(p.ServiceOptions.SupportedRegions),
+			}
+		}
+		_, err = rm.sdkapi.AuthorizeVpcEndpointAccess(ctx, input)
+		rm.metrics.RecordAPICall("UPDATE", "AuthorizeVpcEndpointAccess", err)
+		if err != nil {
+			return err
+		}
+	}
+	for _, p := range removed {
+		principal := aws.ToString(p.Principal)
+		if principal == "" {
+			continue
+		}
+		input := &svcsdk.RevokeVpcEndpointAccessInput{DomainName: aws.String(domainName)}
+		input.Account, input.Service = vpcEndpointAccessPrincipal(principal)
+		_, err = rm.sdkapi.RevokeVpcEndpointAccess(ctx, input)
+		rm.metrics.RecordAPICall("UPDATE", "RevokeVpcEndpointAccess", err)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// vpcEndpointAccessPrincipal returns the principal as an account or a service.
+func vpcEndpointAccessPrincipal(
+	principal string,
+) (account *string, service svcsdktypes.AWSServicePrincipal) {
+	if awsAccountIDRegexp.MatchString(principal) {
+		return aws.String(principal), ""
+	}
+	return nil, svcsdktypes.AWSServicePrincipal(principal)
 }
