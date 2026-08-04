@@ -549,6 +549,12 @@ func (rm *resourceManager) sdkFind(
 		return &resource{ko}, err
 	}
 
+	// AuthorizedPrincipals live outside DescribeDomain; read them separately.
+	ko.Spec.AuthorizedPrincipals, err = rm.getVPCEndpointAuthorizedPrincipals(ctx, *ko.Spec.Name)
+	if err != nil {
+		return &resource{ko}, err
+	}
+
 	err = rm.setAutoTuneOptions(ctx, ko)
 	if err != nil {
 		return &resource{ko}, err

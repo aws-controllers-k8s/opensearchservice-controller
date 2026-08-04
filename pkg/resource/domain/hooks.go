@@ -17,10 +17,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 
 	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
 	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
 	ackcondition "github.com/aws-controllers-k8s/runtime/pkg/condition"
+	ackerr "github.com/aws-controllers-k8s/runtime/pkg/errors"
 	ackrequeue "github.com/aws-controllers-k8s/runtime/pkg/requeue"
 	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -54,7 +56,44 @@ func customPreCompare(delta *ackcompare.Delta, a *resource, b *resource) {
 			}
 		}
 	}
+	added, removed := authorizedPrincipalsDiff(a.ko.Spec.AuthorizedPrincipals, b.ko.Spec.AuthorizedPrincipals)
+	if len(added) > 0 || len(removed) > 0 {
+		delta.Add("Spec.AuthorizedPrincipals", a.ko.Spec.AuthorizedPrincipals, b.ko.Spec.AuthorizedPrincipals)
+	}
 }
+
+// authorizedPrincipalsDiff returns the principals present in desired but not
+// latest (added), and those present in latest but not desired (removed).
+// Membership is keyed on the principal value so the comparison is
+// order-independent; ListVpcEndpointAccess does not guarantee ordering, so an
+// ordered comparison would produce perpetual drift.
+func authorizedPrincipalsDiff(desired, latest []*svcapitypes.AuthorizedPrincipal) (added, removed []*svcapitypes.AuthorizedPrincipal) {
+	latestSet := make(map[string]bool, len(latest))
+	for _, p := range latest {
+		latestSet[aws.ToString(p.Principal)] = true
+	}
+	desiredSet := make(map[string]bool, len(desired))
+	for _, p := range desired {
+		desiredSet[aws.ToString(p.Principal)] = true
+		if !latestSet[aws.ToString(p.Principal)] {
+			added = append(added, p)
+		}
+	}
+	for _, p := range latest {
+		if !desiredSet[aws.ToString(p.Principal)] {
+			removed = append(removed, p)
+		}
+	}
+	return added, removed
+}
+
+// awsAccountIDRegexp matches a bare 12-digit AWS account ID. A principal that
+// matches is an AWS_ACCOUNT; anything else (e.g. a service name like
+// application.opensearchservice.amazonaws.com) is an AWS_SERVICE. The two value
+// spaces are disjoint, and Authorize/RevokeVpcEndpointAccess accept the
+// principal via distinct Account vs Service fields, so the type never needs to
+// be stored on the resource.
+var awsAccountIDRegexp = regexp.MustCompile(`^\d{12}$`)
 
 func checkDomainStatus(resp *svcsdk.DescribeDomainOutput, ko *svcapitypes.Domain) {
 	if resp.DomainStatus.AutoTuneOptions != nil {
@@ -213,7 +252,20 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		}
 	}
 
-	if !delta.DifferentExcept("Spec.Tags") {
+	// AuthorizedPrincipals are managed by AuthorizeVpcEndpointAccess /
+	// RevokeVpcEndpointAccess, not by UpdateDomainConfig.
+	if delta.DifferentAt("Spec.AuthorizedPrincipals") {
+		err = rm.syncVPCEndpointAuthorizedPrincipals(
+			ctx,
+			*latest.ko.Spec.Name,
+			desired.ko.Spec.AuthorizedPrincipals, latest.ko.Spec.AuthorizedPrincipals,
+		)
+		if err != nil {
+			return desired, err
+		}
+	}
+
+	if !delta.DifferentExcept("Spec.Tags", "Spec.AuthorizedPrincipals") {
 		return desired, nil
 	}
 
@@ -812,4 +864,93 @@ func int64OrNil(num *int32) *int64 {
 	}
 
 	return aws.Int64(int64(*num))
+}
+
+// getVPCEndpointAuthorizedPrincipals returns the full list of AWS accounts and
+// services currently authorized to access the supplied domain's VPC endpoints.
+// It transparently pages through ListVpcEndpointAccess.
+func (rm *resourceManager) getVPCEndpointAuthorizedPrincipals(
+	ctx context.Context,
+	domainName string,
+) (principals []*svcapitypes.AuthorizedPrincipal, err error) {
+	rlog := ackrtlog.FromContext(ctx)
+	exit := rlog.Trace("rm.getVPCEndpointAuthorizedPrincipals")
+	defer func() { exit(err) }()
+
+	var nextToken *string
+	for {
+		resp, err := rm.sdkapi.ListVpcEndpointAccess(
+			ctx,
+			&svcsdk.ListVpcEndpointAccessInput{
+				DomainName: aws.String(domainName),
+				NextToken:  nextToken,
+			},
+		)
+		rm.metrics.RecordAPICall("READ_MANY", "ListVpcEndpointAccess", err)
+		if err != nil {
+			return nil, err
+		}
+		for i := range resp.AuthorizedPrincipalList {
+			p := resp.AuthorizedPrincipalList[i]
+			principals = append(principals, &svcapitypes.AuthorizedPrincipal{
+				Principal: p.Principal,
+			})
+		}
+		if resp.NextToken == nil || *resp.NextToken == "" {
+			break
+		}
+		nextToken = resp.NextToken
+	}
+	return principals, nil
+}
+
+// syncVPCEndpointAuthorizedPrincipals reconciles the AWS-side authorized
+// principals against the desired list by issuing AuthorizeVpcEndpointAccess for
+// principals that need to be added and RevokeVpcEndpointAccess for those that
+// need to be removed. Service principals are passed via the Service request
+// field; account principals via Account.
+func (rm *resourceManager) syncVPCEndpointAuthorizedPrincipals(
+	ctx context.Context,
+	domainName string,
+	desired []*svcapitypes.AuthorizedPrincipal,
+	latest []*svcapitypes.AuthorizedPrincipal,
+) (err error) {
+	rlog := ackrtlog.FromContext(ctx)
+	exit := rlog.Trace("rm.syncVPCEndpointAuthorizedPrincipals")
+	defer func() { exit(err) }()
+
+	added, removed := authorizedPrincipalsDiff(desired, latest)
+
+	for _, p := range added {
+		if p.Principal == nil {
+			return ackerr.NewTerminalError(
+				fmt.Errorf("authorizedPrincipals entries must set principal"),
+			)
+		}
+		input := &svcsdk.AuthorizeVpcEndpointAccessInput{DomainName: aws.String(domainName)}
+		if awsAccountIDRegexp.MatchString(*p.Principal) {
+			input.Account = p.Principal
+		} else {
+			input.Service = svcsdktypes.AWSServicePrincipal(*p.Principal)
+		}
+		_, err = rm.sdkapi.AuthorizeVpcEndpointAccess(ctx, input)
+		rm.metrics.RecordAPICall("UPDATE", "AuthorizeVpcEndpointAccess", err)
+		if err != nil {
+			return err
+		}
+	}
+	for _, p := range removed {
+		input := &svcsdk.RevokeVpcEndpointAccessInput{DomainName: aws.String(domainName)}
+		if awsAccountIDRegexp.MatchString(*p.Principal) {
+			input.Account = p.Principal
+		} else {
+			input.Service = svcsdktypes.AWSServicePrincipal(*p.Principal)
+		}
+		_, err = rm.sdkapi.RevokeVpcEndpointAccess(ctx, input)
+		rm.metrics.RecordAPICall("UPDATE", "RevokeVpcEndpointAccess", err)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

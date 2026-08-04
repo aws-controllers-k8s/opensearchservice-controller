@@ -159,6 +159,30 @@ def list_tags(domain_arn):
         return resp
     except c.exceptions.ResourceNotFoundException:
         return None
+
+
+def list_vpc_endpoint_access(domain_name):
+    """Returns the set of principal identities currently authorized to access the
+    domain via VPC endpoints (e.g. {'123456789012', 'application.opensearchservice.amazonaws.com'}).
+    Pages through NextToken so the caller does not have to. Only the Principal
+    identity is returned; PrincipalType is intentionally omitted since the API
+    reports it in a human-readable form ('AWS Service') that differs from the
+    spec/enum form ('AWS_SERVICE').
+    """
+    c = boto3.client('opensearch', config=_RETRY_CONFIG)
+    principals = set()
+    next_token = None
+    while True:
+        kwargs = {'DomainName': domain_name}
+        if next_token:
+            kwargs['NextToken'] = next_token
+        resp = c.list_vpc_endpoint_access(**kwargs)
+        for p in resp.get('AuthorizedPrincipalList', []):
+            principals.add(p.get('Principal', ''))
+        next_token = resp.get('NextToken')
+        if not next_token:
+            break
+    return principals
     
 
 # Apparently, there is an 'endpoint' and an 'endpoints' field for a domain.

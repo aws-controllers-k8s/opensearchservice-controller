@@ -171,6 +171,20 @@ spec:
                         type: string
                     type: object
                 type: object
+              authorizedPrincipals:
+                description: |-
+                  A list of IAM principals (https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_principal.html)
+                  that can currently access the domain.
+                items:
+                  description: |-
+                    Information about an Amazon Web Services account or service that has access
+                    to an Amazon OpenSearch Service domain through the use of an interface VPC
+                    endpoint.
+                  properties:
+                    principal:
+                      type: string
+                  type: object
+                type: array
               autoTuneOptions:
                 description: Options for Auto-Tune.
                 properties:

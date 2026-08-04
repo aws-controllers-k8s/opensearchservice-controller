@@ -32,6 +32,11 @@ ignore:
     - CreateDomainOutput.DomainStatus.IdentityCenterOptions
     # ClientToken is a K8s-irrelevant idempotency token
     - CreateVpcEndpointInput.ClientToken
+    # PrincipalType is derivable from the principal value (12-digit account vs
+    # service name) and is not an input to Authorize/RevokeVpcEndpointAccess. AWS
+    # returns it in a human-readable form ("AWS Service") that differs from the
+    # enum form, which would cause perpetual drift, so it is dropped from the CRD.
+    - AuthorizedPrincipal.PrincipalType
 resources:
   Domain:
     renames:
@@ -90,6 +95,19 @@ resources:
           resource: SecurityGroup
           path: Status.ID
           service_name: ec2
+      # AuthorizedPrincipals are the AWS accounts/services granted cross-account
+      # VPC endpoint access to the domain. They are not part of the Domain
+      # Create/Describe shapes; they are managed by the separate
+      # AuthorizeVpcEndpointAccess / RevokeVpcEndpointAccess / ListVpcEndpointAccess
+      # operations (keyed by DomainName). The from block only gives the field its
+      # []*AuthorizedPrincipal type — read-back and sync are wired via hooks. The
+      # list is unordered, so it is compared in customPreCompare.
+      AuthorizedPrincipals:
+        from:
+          operation: ListVpcEndpointAccess
+          path: AuthorizedPrincipalList
+        compare:
+          is_ignored: true
     update_operation:
       custom_method_name: customUpdateDomain
   VpcEndpoint:
