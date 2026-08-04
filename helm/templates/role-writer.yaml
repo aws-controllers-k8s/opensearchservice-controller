@@ -17,6 +17,7 @@ rules:
   - opensearchservice.services.k8s.aws
   resources:
   - domains
+  - vpcendpoints
   verbs:
   - create
   - delete
@@ -29,6 +30,7 @@ rules:
   - opensearchservice.services.k8s.aws
   resources:
   - domains
+  - vpcendpoints
   verbs:
   - get
   - patch

@@ -10,6 +10,7 @@ rules:
   - opensearchservice.services.k8s.aws
   resources:
   - domains
+  - vpcendpoints
   verbs:
   - get
   - list

@@ -298,6 +298,11 @@ type CompatibleVersionsMap struct {
 	SourceVersion *string `json:"sourceVersion,omitempty"`
 }
 
+// The connection properties of an outbound connection.
+type ConnectionProperties struct {
+	Endpoint *string `json:"endpoint,omitempty"`
+}
+
 // Data sources that are associated with an OpenSearch Application.
 type DataSource struct {
 	// The Amazon Resource Name (ARN) of the domain. See Identifiers for IAM Entities
@@ -872,26 +877,36 @@ type VPCDerivedInfoStatus struct {
 	Options *VPCDerivedInfo `json:"options,omitempty"`
 }
 
+// Error information when attempting to describe an Amazon OpenSearch Service-managed
+// VPC endpoint.
+type VPCEndpointError struct {
+	ErrorCode     *string `json:"errorCode,omitempty"`
+	ErrorMessage  *string `json:"errorMessage,omitempty"`
+	VPCEndpointID *string `json:"vpcEndpointID,omitempty"`
+}
+
+// Summary information for an Amazon OpenSearch Service-managed VPC endpoint.
+type VPCEndpointSummary struct {
+	DomainARN        *string `json:"domainARN,omitempty"`
+	Status           *string `json:"status,omitempty"`
+	VPCEndpointID    *string `json:"vpcEndpointID,omitempty"`
+	VPCEndpointOwner *string `json:"vpcEndpointOwner,omitempty"`
+}
+
 // The connection endpoint for connecting to an Amazon OpenSearch Service domain
 // through a proxy.
-type VPCEndpoint struct {
+type VPCEndpoint_SDK struct {
+	DomainARN        *string `json:"domainARN,omitempty"`
+	Endpoint         *string `json:"endpoint,omitempty"`
+	Status           *string `json:"status,omitempty"`
+	VPCEndpointID    *string `json:"vpcEndpointID,omitempty"`
+	VPCEndpointOwner *string `json:"vpcEndpointOwner,omitempty"`
 	// Information about the subnets and security groups for an Amazon OpenSearch
 	// Service domain provisioned within a virtual private cloud (VPC). For more
 	// information, see Launching your Amazon OpenSearch Service domains using a
 	// VPC (https://docs.aws.amazon.com/opensearch-service/latest/developerguide/vpc.html).
 	// This information only exists if the domain was created with VPCOptions.
 	VPCOptions *VPCDerivedInfo `json:"vpcOptions,omitempty"`
-}
-
-// Error information when attempting to describe an Amazon OpenSearch Service-managed
-// VPC endpoint.
-type VPCEndpointError struct {
-	ErrorMessage *string `json:"errorMessage,omitempty"`
-}
-
-// Summary information for an Amazon OpenSearch Service-managed VPC endpoint.
-type VPCEndpointSummary struct {
-	VPCEndpointOwner *string `json:"vpcEndpointOwner,omitempty"`
 }
 
 // Options to specify the subnets and security groups for an Amazon OpenSearch
