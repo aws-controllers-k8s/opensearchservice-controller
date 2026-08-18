@@ -466,4 +466,42 @@ class TestDomain:
             actual=latest_tags,
         )
 
+    def test_authorized_principals_es_2d3m_multi_az_vpc_2_subnet7_9(self, es_2d3m_multi_az_vpc_2_subnet7_9_domain):
+        ref, resource = es_2d3m_multi_az_vpc_2_subnet7_9_domain
+        modify_wait_after_seconds = 30
+        service_principal = "application.opensearchservice.amazonaws.com"
+
+        time.sleep(CHECK_ENDPOINT_WAIT_SECONDS)
+        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=30)
+
+        updates = {
+            "spec": {
+                "authorizedPrincipals": [
+                    {
+                        "principal": service_principal,
+                    }
+                ]
+            }
+        }
+        k8s.patch_custom_resource(ref, updates)
+
+        time.sleep(modify_wait_after_seconds)
+        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=10)
+
+        latest_principals = domain.list_vpc_endpoint_access(resource.name)
+        assert service_principal in latest_principals
+
+        updates = {
+            "spec": {
+                "authorizedPrincipals": []
+            }
+        }
+        k8s.patch_custom_resource(ref, updates)
+
+        time.sleep(modify_wait_after_seconds)
+        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=10)
+
+        latest_principals = domain.list_vpc_endpoint_access(resource.name)
+        assert service_principal not in latest_principals
+
 

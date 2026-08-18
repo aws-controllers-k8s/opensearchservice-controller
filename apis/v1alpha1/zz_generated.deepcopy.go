@@ -1149,6 +1149,17 @@ func (in *DomainSpec) DeepCopyInto(out *DomainSpec) {
 		*out = new(AdvancedSecurityOptionsInput)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.AuthorizedPrincipals != nil {
+		in, out := &in.AuthorizedPrincipals, &out.AuthorizedPrincipals
+		*out = make([]*AuthorizedPrincipal, len(*in))
+		for i := range *in {
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(AuthorizedPrincipal)
+				(*in).DeepCopyInto(*out)
+			}
+		}
+	}
 	if in.AutoTuneOptions != nil {
 		in, out := &in.AutoTuneOptions, &out.AutoTuneOptions
 		*out = new(AutoTuneOptionsInput)

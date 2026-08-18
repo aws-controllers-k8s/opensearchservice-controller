@@ -58,6 +58,9 @@ type DomainSpec struct {
 	AdvancedOptions map[string]*string `json:"advancedOptions,omitempty"`
 	// Options for fine-grained access control.
 	AdvancedSecurityOptions *AdvancedSecurityOptionsInput `json:"advancedSecurityOptions,omitempty"`
+	// A list of IAM principals (https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_principal.html)
+	// that can currently access the domain.
+	AuthorizedPrincipals []*AuthorizedPrincipal `json:"authorizedPrincipals,omitempty"`
 	// Options for Auto-Tune.
 	AutoTuneOptions *AutoTuneOptionsInput `json:"autoTuneOptions,omitempty"`
 	// Container for the cluster configuration of a domain.
