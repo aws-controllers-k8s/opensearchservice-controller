@@ -1,0 +1,12 @@
+apiVersion: opensearchservice.services.k8s.aws/v1alpha1
+kind: VPCEndpointAccess
+metadata:
+  name: $VPC_ENDPOINT_ACCESS_NAME
+spec:
+  domainRef:
+    from:
+      name: $DOMAIN_NAME
+  principal: $PRINCIPAL
+  serviceOptions:
+    supportedRegions:
+    - $REGION

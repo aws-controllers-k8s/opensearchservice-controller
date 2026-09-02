@@ -13,6 +13,21 @@ operations:
       - List
     resource_name: VpcEndpoint
     output_wrapper_field_path: VpcEndpoints
+  # VpcEndpointAccess is one authorization of a principal on a domain's VPC
+  # endpoints. The API has no Create/Delete verbs for it, so map the
+  # authorize/revoke/list trio onto the CRUD+L operations.
+  AuthorizeVpcEndpointAccess:
+    operation_type:
+      - Create
+    resource_name: VpcEndpointAccess
+  RevokeVpcEndpointAccess:
+    operation_type:
+      - Delete
+    resource_name: VpcEndpointAccess
+  ListVpcEndpointAccess:
+    operation_type:
+      - List
+    resource_name: VpcEndpointAccess
 ignore:
   operations:
     # ListVpcEndpoints lists all endpoints with no identifier filter; use
@@ -24,7 +39,13 @@ ignore:
     - OutboundConnection
     # - VpcEndpoint
     - Application
+    # Index management is a data plane concern, and its schema is a smithy
+    # document shape the generator cannot model
+    - Index
   field_paths:
+    # AWS returns PrincipalType as "AWS Account"/"AWS Service", not the modelled
+    # enum, so exposing it would drift forever. It is derivable from the principal.
+    - AuthorizedPrincipal.PrincipalType
     # SnapshotOptions is irrelevant for OpenSearch 5.3+
     - CreateDomainInput.SnapshotOptions
     - CreateDomainInput.IdentityCenterOptions
@@ -32,6 +53,29 @@ ignore:
     - CreateDomainOutput.DomainStatus.IdentityCenterOptions
     # ClientToken is a K8s-irrelevant idempotency token
     - CreateVpcEndpointInput.ClientToken
+    # Fields the SDK bump brought in. DescribeDomain returns server-set values for
+    # deploymentStrategyOptions, s3VectorsEngine and serverlessVectorAcceleration,
+    # so exposing any of these needs late_initialize support first.
+    - AIMLOptionsInput.S3VectorsEngine
+    - AIMLOptionsInput.ServerlessVectorAcceleration
+    - AdvancedSecurityOptions.IAMFederationOptions
+    - AdvancedSecurityOptionsInput.IAMFederationOptions
+    - CreateDomainInput.DeploymentStrategyOptions
+    - CreateDomainOutput.DomainStatus.DeploymentStrategyOptions
+    - SoftwareUpdateOptions.UseLatestServiceSoftwareForBlueGreen
+    - CreateDomainInput.AutomatedSnapshotPauseOptions
+    - CreateDomainOutput.DomainStatus.AutomatedSnapshotPauseOptions
+    - CreateDomainInput.EngineMode
+    - CreateDomainOutput.DomainStatus.EngineMode
+    - CreateDomainInput.UseCase
+    - CreateDomainOutput.DomainStatus.UseCase
+    - JWTOptionsInput.JwksUrl
+    - VPCOptions.EgressEnabled
+    - VPCDerivedInfo.EgressEnabled
+    # A VpcEndpointAccess is identified by its principal. Account and Service are
+    # the two request fields that carry it, and hooks fill in whichever applies.
+    - AuthorizeVpcEndpointAccessInput.Account
+    - AuthorizeVpcEndpointAccessInput.Service
 resources:
   Domain:
     renames:
@@ -92,6 +136,52 @@ resources:
           service_name: ec2
     update_operation:
       custom_method_name: customUpdateDomain
+  VpcEndpointAccess:
+    fields:
+      DomainName:
+        references:
+          resource: Domain
+          path: Spec.Name
+        is_immutable: true
+      Principal:
+        from:
+          operation: AuthorizeVpcEndpointAccess
+          path: AuthorizedPrincipal.Principal
+        is_primary_key: true
+        is_immutable: true
+        is_required: true
+      ServiceOptions:
+        # Authorizing without regions defaults them to the domain's own region,
+        # so late-initialize what the domain reports back.
+        late_initialize:
+          skip_incomplete_check: {}
+      ServiceOptions.SupportedRegions:
+        late_initialize:
+          skip_incomplete_check: {}
+        # ListVpcEndpointAccess does not report regions in the order they were
+        # authorized, so they are compared as a set in customPreCompare.
+        compare:
+          is_ignored: true
+    list_operation:
+      match_fields:
+        - Principal
+    exceptions:
+      errors:
+        404:
+          code: ResourceNotFoundException
+      terminal_codes:
+        - ValidationException
+    tags:
+      ignore: true
+    update_operation:
+      custom_method_name: customUpdate
+    hooks:
+      delta_pre_compare:
+        code: customPreCompare(delta, a, b)
+      sdk_create_post_build_request:
+        template_path: hooks/vpc_endpoint_access/sdk_create_post_build_request.go.tpl
+      sdk_delete_post_build_request:
+        template_path: hooks/vpc_endpoint_access/sdk_delete_post_build_request.go.tpl
   VpcEndpoint:
     synced:
       when:

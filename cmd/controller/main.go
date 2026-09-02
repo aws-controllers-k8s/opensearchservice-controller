@@ -45,6 +45,7 @@ import (
 
 	_ "github.com/aws-controllers-k8s/opensearchservice-controller/pkg/resource/domain"
 	_ "github.com/aws-controllers-k8s/opensearchservice-controller/pkg/resource/vpc_endpoint"
+	_ "github.com/aws-controllers-k8s/opensearchservice-controller/pkg/resource/vpc_endpoint_access"
 
 	"github.com/aws-controllers-k8s/opensearchservice-controller/pkg/version"
 )
