@@ -50,7 +50,7 @@ var (
 // +kubebuilder:rbac:groups=opensearchservice.services.k8s.aws,resources=domains,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=opensearchservice.services.k8s.aws,resources=domains/status,verbs=get;update;patch
 
-var lateInitializeFieldNames = []string{}
+var lateInitializeFieldNames = []string{"AIMLOptions", "AccessPolicies", "AdvancedOptions", "VPCOptions", "SecurityGroupIDs"}
 
 // resourceManager is responsible for providing a consistent way to perform
 // CRUD operations in a backend AWS service API for Book custom resources.
@@ -260,7 +260,26 @@ func (rm *resourceManager) lateInitializeFromReadOneOutput(
 	observed acktypes.AWSResource,
 	latest acktypes.AWSResource,
 ) acktypes.AWSResource {
-	return latest
+	observedKo := rm.concreteResource(observed).ko.DeepCopy()
+	latestKo := rm.concreteResource(latest).ko.DeepCopy()
+	if observedKo.Spec.AIMLOptions != nil && latestKo.Spec.AIMLOptions == nil {
+		latestKo.Spec.AIMLOptions = observedKo.Spec.AIMLOptions
+	}
+	if observedKo.Spec.AccessPolicies != nil && latestKo.Spec.AccessPolicies == nil {
+		latestKo.Spec.AccessPolicies = observedKo.Spec.AccessPolicies
+	}
+	if observedKo.Spec.AdvancedOptions != nil && latestKo.Spec.AdvancedOptions == nil {
+		latestKo.Spec.AdvancedOptions = observedKo.Spec.AdvancedOptions
+	}
+	if observedKo.Spec.VPCOptions != nil && latestKo.Spec.VPCOptions == nil {
+		latestKo.Spec.VPCOptions = observedKo.Spec.VPCOptions
+	}
+	if observedKo.Spec.VPCOptions != nil && latestKo.Spec.VPCOptions != nil {
+		if observedKo.Spec.VPCOptions.SecurityGroupIDs != nil && latestKo.Spec.VPCOptions.SecurityGroupIDs == nil {
+			latestKo.Spec.VPCOptions.SecurityGroupIDs = observedKo.Spec.VPCOptions.SecurityGroupIDs
+		}
+	}
+	return &resource{latestKo}
 }
 
 // IsSynced returns true if the resource is synced.

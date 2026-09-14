@@ -12,8 +12,9 @@
 # permissions and limitations under the License.
 
 import os
-import boto3
 import pytest
+
+from e2e import opensearch_client
 
 
 def pytest_addoption(parser):
@@ -43,4 +44,4 @@ def pytest_collection_modifyitems(config, items):
 
 @pytest.fixture(scope="module")
 def os_client():
-    return boto3.client('opensearch')
+    return opensearch_client()

@@ -39,6 +39,12 @@ type AIMLOptionsOutput struct {
 	// Container for parameters representing the state of the natural language query
 	// generation feature on the specified domain.
 	NATuralLanguageQueryGenerationOptions *NATuralLanguageQueryGenerationOptionsOutput `json:"naturalLanguageQueryGenerationOptions,omitempty"`
+	// Options for enabling S3 vectors engine features on the specified domain.
+	S3VectorsEngine *S3VectorsEngine `json:"s3VectorsEngine,omitempty"`
+	// Configuration for serverless vector acceleration, which provides GPU-accelerated
+	// (https://docs.aws.amazon.com/opensearch-service/latest/developerguide/gpu-acceleration-vector-index.html)
+	// vector search capabilities for improved performance on vector workloads.
+	ServerlessVectorAcceleration *ServerlessVectorAcceleration `json:"serverlessVectorAcceleration,omitempty"`
 }
 
 // The status of machine learning options on the specified domain.
@@ -53,6 +59,8 @@ type AWSDomainInformation struct {
 	// The name of an OpenSearch Service domain. Domain names are unique across
 	// the domains owned by an account within an Amazon Web Services Region.
 	DomainName *string `json:"domainName,omitempty"`
+	// An Amazon Web Services Region, such as us-east-1.
+	Region *string `json:"region,omitempty"`
 }
 
 // The configured access rules for the domain's search endpoint, and the current
@@ -137,7 +145,7 @@ type AdvancedSecurityOptionsStatus struct {
 	Options *AdvancedSecurityOptions `json:"options,omitempty"`
 }
 
-// Basic information of the OpenSearch Application.
+// Basic details of an OpenSearch application.
 type ApplicationSummary struct {
 	// The Amazon Resource Name (ARN) of the domain. See Identifiers for IAM Entities
 	// (https://docs.aws.amazon.com/IAM/latest/UserGuide/index.html) in Using Amazon
@@ -151,6 +159,8 @@ type ApplicationSummary struct {
 // endpoint.
 type AuthorizedPrincipal struct {
 	Principal *string `json:"principal,omitempty"`
+	// Options for the service, such as the supported Regions.
+	ServiceOptions *ServiceOptions `json:"serviceOptions,omitempty"`
 }
 
 // This object is deprecated. Use the domain's off-peak window (https://docs.aws.amazon.com/opensearch-service/latest/developerguide/off-peak.html)
@@ -205,6 +215,23 @@ type AutoTuneStatus struct {
 	// OpenSearch Service (https://docs.aws.amazon.com/opensearch-service/latest/developerguide/auto-tune.html).
 	State      *string      `json:"state,omitempty"`
 	UpdateDate *metav1.Time `json:"updateDate,omitempty"`
+}
+
+// Specifies the automated snapshot pause options for the domain. These options
+// allow you to temporarily pause automated snapshots for a specified time period.
+type AutomatedSnapshotPauseOptions struct {
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// Specifies the automated snapshot pause request options for the domain.
+//
+// Suspending snapshots reduces data protection. You cannot restore your domain
+// to points in time when snapshots are suspended. Use this feature only for
+// short-term operational needs such as migrations or maintenance windows.
+//
+// Maximum suspension duration: 3 days.
+type AutomatedSnapshotPauseRequestOptions struct {
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // A property change that was cancelled for an Amazon OpenSearch Service domain.
@@ -301,8 +328,19 @@ type ConnectionProperties struct {
 	Endpoint *string `json:"endpoint,omitempty"`
 }
 
-// Data sources that are associated with an OpenSearch Application.
+// Data sources that are associated with an OpenSearch application.
 type DataSource struct {
+	// The Amazon Resource Name (ARN) of the domain. See Identifiers for IAM Entities
+	// (https://docs.aws.amazon.com/IAM/latest/UserGuide/index.html) in Using Amazon
+	// Web Services Identity and Access Management for more information.
+	DataSourceARN           *string `json:"dataSourceARN,omitempty"`
+	IAMRoleForDataSourceARN *string `json:"iamRoleForDataSourceARN,omitempty"`
+}
+
+// Summary information about a data source attachment, including its identifier,
+// data source ARN, and current status.
+type DataSourceAttachmentSummary struct {
+	AttachmentID *string `json:"attachmentID,omitempty"`
 	// The Amazon Resource Name (ARN) of the domain. See Identifiers for IAM Entities
 	// (https://docs.aws.amazon.com/IAM/latest/UserGuide/index.html) in Using Amazon
 	// Web Services Identity and Access Management for more information.
@@ -528,7 +566,23 @@ type EncryptionAtRestOptionsStatus struct {
 	Options *EncryptionAtRestOptions `json:"options,omitempty"`
 }
 
-// Settings for IAM Identity Center for an OpenSearch Application.
+// Options to filter the scope of saved objects to export during a migration.
+type ExportOptions struct {
+	IncludeReferencesDeep *bool     `json:"includeReferencesDeep,omitempty"`
+	Types                 []*string `json:"types,omitempty"`
+}
+
+// Input parameters for configuring IAM identity federation settings.
+type IAMFederationOptionsInput struct {
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// Output parameters showing the current IAM identity federation configuration.
+type IAMFederationOptionsOutput struct {
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// Configuration settings for IAM Identity Center in an OpenSearch application.
 type IAMIdentityCenterOptions struct {
 	Enabled *bool `json:"enabled,omitempty"`
 	// The Amazon Resource Name (ARN) of the domain. See Identifiers for IAM Entities
@@ -542,7 +596,7 @@ type IAMIdentityCenterOptions struct {
 	IAMRoleForIdentityCenterApplicationARN *string `json:"iamRoleForIdentityCenterApplicationARN,omitempty"`
 }
 
-// Settings for IAM Identity Center.
+// Configuration settings for enabling and managing IAM Identity Center.
 type IAMIdentityCenterOptionsInput struct {
 	Enabled *bool `json:"enabled,omitempty"`
 	// The Amazon Resource Name (ARN) of the domain. See Identifiers for IAM Entities
@@ -557,14 +611,39 @@ type IPAddressTypeStatus struct {
 	Options *string `json:"options,omitempty"`
 }
 
-// Container for IAM Identity Center Options settings.
+// Settings container for integrating IAM Identity Center with OpenSearch UI
+// applications, which enables enabling secure user authentication and access
+// control across multiple data sources. This setup supports single sign-on
+// (SSO) through IAM Identity Center, allowing centralized user management.
 type IdentityCenterOptions struct {
 	EnabledAPIAccess *bool `json:"enabledAPIAccess,omitempty"`
+	// An Amazon Web Services Region, such as us-east-1.
+	IdentityCenterInstanceRegion *string `json:"identityCenterInstanceRegion,omitempty"`
 }
 
-// Container for IAM Identity Center Options settings.
+// Configuration settings for enabling and managing IAM Identity Center.
 type IdentityCenterOptionsInput struct {
 	EnabledAPIAccess *bool `json:"enabledAPIAccess,omitempty"`
+	// An Amazon Web Services Region, such as us-east-1.
+	IdentityCenterInstanceRegion *string `json:"identityCenterInstanceRegion,omitempty"`
+}
+
+// Represents an insight returned by the ListInsights operation. An insight
+// is a notification about a domain event or recommendation that helps you optimize
+// your Amazon OpenSearch Service domain.
+type Insight struct {
+	CreationTime   *metav1.Time `json:"creationTime,omitempty"`
+	DisplayName    *string      `json:"displayName,omitempty"`
+	InsightID      *string      `json:"insightID,omitempty"`
+	IsExperimental *bool        `json:"isExperimental,omitempty"`
+	UpdateTime     *metav1.Time `json:"updateTime,omitempty"`
+}
+
+// Represents a field in the detailed view of an insight, returned by the DescribeInsightDetails
+// operation.
+type InsightField struct {
+	Name  *string `json:"name,omitempty"`
+	Value *string `json:"value,omitempty"`
 }
 
 // Lists all instance types and available features for a given OpenSearch or
@@ -590,6 +669,7 @@ type JWTOptionsInput struct {
 // Describes the JWT options configured for the domain.
 type JWTOptionsOutput struct {
 	Enabled    *bool   `json:"enabled,omitempty"`
+	JwksURL    *string `json:"jwksURL,omitempty"`
 	PublicKey  *string `json:"publicKey,omitempty"`
 	RolesKey   *string `json:"rolesKey,omitempty"`
 	SubjectKey *string `json:"subjectKey,omitempty"`
@@ -629,6 +709,43 @@ type MasterUserOptions struct {
 	MasterUserPassword *ackv1alpha1.SecretKeyReference `json:"masterUserPassword,omitempty"`
 }
 
+// Contains error details for a migration that failed or completed with errors.
+type MigrationError struct {
+	Code    *string `json:"code,omitempty"`
+	Message *string `json:"message,omitempty"`
+}
+
+// The configuration options for a saved objects migration job.
+type MigrationOptions struct {
+	ConflictResolution *string `json:"conflictResolution,omitempty"`
+}
+
+// The source configuration for a migration, specifying the data source from
+// which to export saved objects.
+type MigrationSource struct {
+	// The Amazon Resource Name (ARN) of the domain. See Identifiers for IAM Entities
+	// (https://docs.aws.amazon.com/IAM/latest/UserGuide/index.html) in Using Amazon
+	// Web Services Identity and Access Management for more information.
+	DatasourceARN *string `json:"datasourceARN,omitempty"`
+}
+
+// A summary of a migration job, including its status and progress.
+type MigrationSummary struct {
+	CreatedAt   *metav1.Time `json:"createdAt,omitempty"`
+	MigrationID *string      `json:"migrationID,omitempty"`
+	Status      *string      `json:"status,omitempty"`
+	UpdatedAt   *metav1.Time `json:"updatedAt,omitempty"`
+}
+
+// The target workspace configuration for a migration. You can specify an existing
+// workspace by ID or request creation of a new workspace.
+type MigrationWorkspace struct {
+	CreateWorkspace *bool   `json:"createWorkspace,omitempty"`
+	Name            *string `json:"name,omitempty"`
+	Type            *string `json:"type_,omitempty"`
+	WorkspaceID     *string `json:"workspaceID,omitempty"`
+}
+
 // Information about the domain properties that are currently being modified.
 type ModifyingProperties struct {
 	ActiveValue  *string `json:"activeValue,omitempty"`
@@ -650,7 +767,8 @@ type NATuralLanguageQueryGenerationOptionsOutput struct {
 	DesiredState *string `json:"desiredState,omitempty"`
 }
 
-// Container for specifying configuration of any node type.
+// Configuration options for defining the setup of any node type within the
+// cluster.
 type NodeConfig struct {
 	Count   *int64  `json:"count,omitempty"`
 	Enabled *bool   `json:"enabled,omitempty"`
@@ -732,8 +850,8 @@ type PackageEncryptionOptions struct {
 	KMSKeyIdentifier  *string `json:"kmsKeyIdentifier,omitempty"`
 }
 
-// The vending options for a package to determine if the package can be used
-// by other users.
+// Configuration options for determining whether a package can be made available
+// for use by other users.
 type PackageVendingOptions struct {
 	VendingEnabled *bool `json:"vendingEnabled,omitempty"`
 }
@@ -761,9 +879,22 @@ type ReservedInstanceOffering struct {
 	ReservedInstanceOfferingID *string `json:"reservedInstanceOfferingID,omitempty"`
 }
 
+// Details about the rollback options for a service software update.
+type RollbackServiceSoftwareOptions struct {
+	CurrentVersion    *string `json:"currentVersion,omitempty"`
+	Description       *string `json:"description,omitempty"`
+	NewVersion        *string `json:"newVersion,omitempty"`
+	RollbackAvailable *bool   `json:"rollbackAvailable,omitempty"`
+}
+
 // Information about the Amazon S3 Glue Data Catalog.
 type S3GlueDataCatalog struct {
 	RoleARN *string `json:"roleARN,omitempty"`
+}
+
+// Options for enabling S3 vectors engine features on the specified domain.
+type S3VectorsEngine struct {
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // The SAML identity povider information.
@@ -794,6 +925,12 @@ type SAMLOptionsOutput struct {
 	SubjectKey            *string  `json:"subjectKey,omitempty"`
 }
 
+// Identifies a specific saved object by its type and unique identifier.
+type SavedObjectIdentifier struct {
+	ID   *string `json:"id,omitempty"`
+	Type *string `json:"type_,omitempty"`
+}
+
 // Information about a scheduled configuration change for an OpenSearch Service
 // domain. This actions can be a service software update (https://docs.aws.amazon.com/opensearch-service/latest/developerguide/service-software.html)
 // or a blue/green Auto-Tune enhancement (https://docs.aws.amazon.com/opensearch-service/latest/developerguide/auto-tune.html#auto-tune-types).
@@ -802,6 +939,18 @@ type ScheduledAction struct {
 	Description *string `json:"description,omitempty"`
 	ID          *string `json:"id,omitempty"`
 	Mandatory   *bool   `json:"mandatory,omitempty"`
+}
+
+// Configuration for serverless vector acceleration, which provides GPU-accelerated
+// (https://docs.aws.amazon.com/opensearch-service/latest/developerguide/gpu-acceleration-vector-index.html)
+// vector search capabilities for improved performance on vector workloads.
+type ServerlessVectorAcceleration struct {
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// Options for the service, such as the supported Regions.
+type ServiceOptions struct {
+	SupportedRegions []*string `json:"supportedRegions,omitempty"`
 }
 
 // The current status of the service software for an Amazon OpenSearch Service
@@ -936,6 +1085,14 @@ type VersionStatus struct {
 type WindowStartTime struct {
 	Hours   *int64 `json:"hours,omitempty"`
 	Minutes *int64 `json:"minutes,omitempty"`
+}
+
+// Configuration for creating a new workspace when attaching a data source to
+// an OpenSearch application. The workspace is created after the data source
+// is successfully attached.
+type WorkspaceConfigurationInput struct {
+	Name          *string `json:"name,omitempty"`
+	WorkspaceType *string `json:"workspaceType,omitempty"`
 }
 
 // The zone awareness configuration for an Amazon OpenSearch Service domain.

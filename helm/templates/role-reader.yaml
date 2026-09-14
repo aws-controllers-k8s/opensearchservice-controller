@@ -18,6 +18,7 @@ rules:
   resources:
   - domains
   - vpcendpoints
+  - vpcendpointaccesses
   verbs:
   - get
   - list
