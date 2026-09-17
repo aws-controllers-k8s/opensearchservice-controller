@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/aws-controllers-k8s/ec2-controller v1.21.0
-	github.com/aws-controllers-k8s/runtime v0.63.0
+	github.com/aws-controllers-k8s/runtime v0.64.0
 	github.com/aws/aws-sdk-go-v2 v1.41.5
 	github.com/aws/aws-sdk-go-v2/service/opensearch v1.45.7
 	github.com/aws/smithy-go v1.24.2
