@@ -18,6 +18,7 @@ rules:
   resources:
   - domains
   - vpcendpoints
+  - vpcendpointaccesses
   verbs:
   - create
   - delete
@@ -31,6 +32,7 @@ rules:
   resources:
   - domains
   - vpcendpoints
+  - vpcendpointaccesses
   verbs:
   - get
   - patch

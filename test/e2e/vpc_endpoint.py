@@ -17,16 +17,14 @@ import datetime
 import time
 import typing
 
-import boto3
-from botocore.config import Config
 import pytest
+
+from e2e import opensearch_client
 
 DEFAULT_WAIT_UNTIL_TIMEOUT_SECONDS = 60*15
 DEFAULT_WAIT_UNTIL_INTERVAL_SECONDS = 15
 DEFAULT_WAIT_UNTIL_DELETED_TIMEOUT_SECONDS = 60*15
 DEFAULT_WAIT_UNTIL_DELETED_INTERVAL_SECONDS = 15
-
-_RETRY_CONFIG = Config(retries={"max_attempts": 10, "mode": "standard"})
 
 VpcEndpointMatchFunc = typing.NewType(
     'VpcEndpointMatchFunc',
@@ -89,7 +87,7 @@ def get(vpc_endpoint_id):
 
     If no such VpcEndpoint exists, returns None.
     """
-    c = boto3.client('opensearch', config=_RETRY_CONFIG)
+    c = opensearch_client()
     resp = c.describe_vpc_endpoints(VpcEndpointIds=[vpc_endpoint_id])
     endpoints = resp.get('VpcEndpoints', [])
     if len(endpoints) == 0:

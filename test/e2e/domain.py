@@ -17,21 +17,15 @@ import datetime
 import time
 import typing
 
-import boto3
-from botocore.config import Config
 import pytest
+from botocore.exceptions import ClientError
+
+from e2e import is_throttling_error, opensearch_client
 
 DEFAULT_WAIT_UNTIL_TIMEOUT_SECONDS = 60*30
 DEFAULT_WAIT_UNTIL_INTERVAL_SECONDS = 20
 DEFAULT_WAIT_UNTIL_DELETED_TIMEOUT_SECONDS = 60*30
 DEFAULT_WAIT_UNTIL_DELETED_INTERVAL_SECONDS = 15
-
-# The e2e suite runs these polling helpers across several parallel pytest-xdist
-# workers, so the aggregate DescribeDomain call rate can trip
-# ThrottlingException. Bump the retry attempt count above the boto3 default (3)
-# so transient throttling is absorbed by the SDK's backoff rather than
-# surfacing as a test failure.
-_RETRY_CONFIG = Config(retries={"max_attempts": 10, "mode": "standard"})
 
 DomainMatchFunc = typing.NewType(
     'DomainMatchFunc',
@@ -43,13 +37,27 @@ class ProcessingMatcher:
         self.match_on = processing
 
     def __call__(self, record: dict) -> bool:
-        return ('DomainStatus' in record
+        return (record is not None
+                and 'DomainStatus' in record
                 and 'Processing' in record['DomainStatus']
                 and record['DomainStatus']['Processing'] == self.match_on)
 
 
 def processing_matches(processing: bool) -> DomainMatchFunc:
     return ProcessingMatcher(processing)
+
+
+# Distinguishes "rate limited, unknown" from None, which means "definitively absent".
+_THROTTLED = object()
+
+
+def _get_tolerating_throttle(domain_name):
+    try:
+        return get(domain_name)
+    except ClientError as e:
+        if is_throttling_error(e):
+            return _THROTTLED
+        raise
 
 
 def wait_until(
@@ -75,7 +83,10 @@ def wait_until(
     now = datetime.datetime.now()
     timeout = now + datetime.timedelta(seconds=timeout_seconds)
 
-    while not match_fn(get(domain_name)):
+    while True:
+        latest = _get_tolerating_throttle(domain_name)
+        if latest is not _THROTTLED and match_fn(latest):
+            return
         if datetime.datetime.now() >= timeout:
             pytest.fail(
                 f"failed to match domain {domain_name} before timeout"
@@ -110,7 +121,9 @@ def wait_until_deleted(
             )
         time.sleep(interval_seconds)
 
-        latest = get(domain_name)
+        latest = _get_tolerating_throttle(domain_name)
+        if latest is _THROTTLED:
+            continue
         if latest is None:
             break
 
@@ -126,7 +139,7 @@ def get(domain_name):
 
     If no such domain exists, returns None.
     """
-    c = boto3.client('opensearch', config=_RETRY_CONFIG)
+    c = opensearch_client()
     try:
         resp = c.describe_domain(DomainName=domain_name)
         assert 'DomainStatus' in resp
@@ -139,7 +152,7 @@ def get_config(domain_name):
 
     if no such domain exists, returns None.
     """
-    c = boto3.client('opensearch', config=_RETRY_CONFIG)
+    c = opensearch_client()
     try:
         resp = c.describe_domain_config(DomainName=domain_name)
         assert 'DomainConfig' in resp
@@ -152,7 +165,7 @@ def list_tags(domain_arn):
 
     if no such domain exists, returns None.
     """
-    c = boto3.client('opensearch', config=_RETRY_CONFIG)
+    c = opensearch_client()
     try:
         resp = c.list_tags(ARN=domain_arn)
         assert 'TagList' in resp

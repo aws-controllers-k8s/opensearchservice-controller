@@ -111,7 +111,7 @@ def es_7_9_domain(os_client, resources: BootstrapResources):
     logging.info(f"ES Domain {resource.name} creation succeeded and DomainStatus.Processing is now False")
 
     time.sleep(CHECK_STATUS_WAIT_SECONDS)
-    assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=10)
+    assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=30)
 
     yield ref, resource
 
@@ -157,7 +157,7 @@ def es_2d3m_multi_az_no_vpc_7_9_domain(os_client, resources: BootstrapResources)
     logging.info(f"ES Domain {resource.name} creation succeeded and DomainStatus.Processing is now False")
 
     time.sleep(CHECK_STATUS_WAIT_SECONDS)
-    assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=10)
+    assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=30)
 
     yield ref, resource
 
@@ -213,7 +213,7 @@ def es_2d3m_multi_az_vpc_2_subnet7_9_domain(os_client, resources: BootstrapResou
     logging.info(f"OpenSearch Domain {resource.name} creation succeeded and DomainStatus.Processing is now False")
 
     time.sleep(CHECK_STATUS_WAIT_SECONDS)
-    assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=10)
+    assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=30)
 
     yield ref, resource
 

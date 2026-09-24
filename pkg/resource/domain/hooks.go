@@ -39,6 +39,16 @@ var (
 		errors.New("domain is currently processing changes, cannot be modified or deleted"),
 		ackrequeue.DefaultRequeueAfterDuration,
 	)
+	// Delay these requeues, otherwise each attempt re-runs IsSynced's
+	// DescribeDomain call and the retries throttle the account.
+	requeueWaitUntilSynced = ackrequeue.NeededAfter(
+		errors.New("requeueing update, domain is not synced"),
+		ackrequeue.DefaultRequeueAfterDuration,
+	)
+	requeueWaitWhileAutoTuneUpdating = ackrequeue.NeededAfter(
+		errors.New("autoTuneOption is updating"),
+		ackrequeue.DefaultRequeueAfterDuration,
+	)
 )
 
 var syncTags = sync.Tags
@@ -59,11 +69,11 @@ func customPreCompare(delta *ackcompare.Delta, a *resource, b *resource) {
 func checkDomainStatus(resp *svcsdk.DescribeDomainOutput, ko *svcapitypes.Domain) {
 	if resp.DomainStatus.AutoTuneOptions != nil {
 		if ready, err := isAutoTuneOptionReady(string(resp.DomainStatus.AutoTuneOptions.State), resp.DomainStatus.AutoTuneOptions.ErrorMessage); err != nil {
-			reason := err.Error()
-			ackcondition.SetSynced(&resource{ko}, corev1.ConditionFalse, nil, &reason)
+			msg := err.Error()
+			ackcondition.SetSynced(&resource{ko}, corev1.ConditionFalse, &msg, &msg)
 		} else if !ready {
-			reason := fmt.Sprintf("waiting for AutotuneOptions to sync. Current state: %s", resp.DomainStatus.AutoTuneOptions.State)
-			ackcondition.SetSynced(&resource{ko}, corev1.ConditionFalse, nil, &reason)
+			msg := fmt.Sprintf("waiting for AutotuneOptions to sync. Current state: %s", resp.DomainStatus.AutoTuneOptions.State)
+			ackcondition.SetSynced(&resource{ko}, corev1.ConditionFalse, &msg, &msg)
 		}
 		ko.Spec.AutoTuneOptions.DesiredState = aws.String(string(resp.DomainStatus.AutoTuneOptions.State))
 	}
@@ -71,7 +81,8 @@ func checkDomainStatus(resp *svcsdk.DescribeDomainOutput, ko *svcapitypes.Domain
 	if domainProcessing(&resource{ko}) {
 		// Setting resource synced condition to false will trigger a requeue of
 		// the resource. No need to return a requeue error here.
-		ackcondition.SetSynced(&resource{ko}, corev1.ConditionFalse, nil, nil)
+		msg := "domain is currently processing changes"
+		ackcondition.SetSynced(&resource{ko}, corev1.ConditionFalse, &msg, &msg)
 	}
 }
 
@@ -152,13 +163,13 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		return updated, err
 	}
 	if !isSynced {
-		return updated, ackrequeue.Needed(fmt.Errorf("requeueing update, domain is not synced"))
+		return updated, requeueWaitUntilSynced
 	}
 
 	if latest.ko.Spec.AutoTuneOptions != nil &&
 		latest.ko.Spec.AutoTuneOptions.DesiredState != nil {
 		if ready, _ := isAutoTuneOptionReady(*latest.ko.Spec.AutoTuneOptions.DesiredState, nil); !ready {
-			return updated, ackrequeue.Needed(fmt.Errorf("autoTuneOption is updating"))
+			return updated, requeueWaitWhileAutoTuneUpdating
 		}
 	}
 
@@ -197,7 +208,8 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		r := &resource{ko}
 		// Setting resource synced condition to false will trigger a requeue of
 		// the resource. No need to return a requeue error here.
-		ackcondition.SetSynced(r, corev1.ConditionFalse, nil, nil)
+		msg := "domain engine version upgrade in progress"
+		ackcondition.SetSynced(r, corev1.ConditionFalse, &msg, &msg)
 		return r, nil
 	}
 
@@ -466,7 +478,8 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 	r := &resource{ko}
 	// Setting resource synced condition to false will trigger a requeue of
 	// the resource. No need to return a requeue error here.
-	ackcondition.SetSynced(r, corev1.ConditionFalse, nil, nil)
+	msg := "domain config update in progress"
+	ackcondition.SetSynced(r, corev1.ConditionFalse, &msg, &msg)
 	return r, nil
 }
 
