@@ -50,6 +50,29 @@ CHECK_STATUS_WAIT_SECONDS = 60
 # enough here after the domain reaches a synced state.
 CHECK_ENDPOINT_WAIT_SECONDS = 60*2
 
+TERMINAL_CHECK_INTERVAL_SECONDS = 30
+
+
+def assert_not_terminal(ref: k8s.CustomResourceReference):
+    cond = k8s.get_resource_condition(ref, condition.CONDITION_TYPE_TERMINAL)
+    assert cond is None or cond['status'] != "True", cond
+
+
+def assert_not_terminal_for(
+    ref: k8s.CustomResourceReference,
+    seconds: int,
+    interval_seconds: int = TERMINAL_CHECK_INTERVAL_SECONDS,
+):
+    """Waits `seconds`, failing if the resource ever goes Terminal in the
+    meantime. AWS rejects a mid-change UpdateDomainConfig with a
+    ValidationException, which terminal_codes turns into a Terminal condition
+    the runtime never requeues out of.
+    """
+    deadline = time.time() + seconds
+    while time.time() < deadline:
+        assert_not_terminal(ref)
+        time.sleep(min(interval_seconds, max(deadline - time.time(), 0)))
+
 
 @dataclass
 class Domain:
@@ -278,8 +301,10 @@ class TestDomain:
         }
         k8s.patch_custom_resource(ref, updates)
 
-        # wait for 15 minutes, it's always going to take at least this long
-        time.sleep(MODIFY_WAIT_AFTER_SECONDS)
+        # wait for 15 minutes, it's always going to take at least this long. The
+        # upgrade path returns early, so the other patched fields stay in delta
+        # and land on a later reconcile - mid-upgrade if the guard regresses.
+        assert_not_terminal_for(ref, MODIFY_WAIT_AFTER_SECONDS)
 
         # wait for DomainProcessing to be False
         assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=30)
@@ -287,7 +312,7 @@ class TestDomain:
         assert latest['DomainStatus']['UpgradeProcessing'] == False
 
         # wait for SoftwareUpdateOptions to be updated
-        time.sleep(MODIFY_WAIT_AFTER_SECONDS)
+        assert_not_terminal_for(ref, MODIFY_WAIT_AFTER_SECONDS)
         assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=1)
         latest = domain.get(resource.name)
         cr = k8s.get_resource(ref)
@@ -361,6 +386,39 @@ class TestDomain:
         assert 'status' in cr
         domain.assert_endpoints(cr)
         
+    def test_update_while_processing_es_7_9(self, es_7_9_domain):
+        ref, resource = es_7_9_domain
+
+        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=30)
+
+        k8s.patch_custom_resource(ref, {"spec": {"ebsOptions": {"volumeSize": 20}}})
+        domain.wait_until(resource.name, domain.processing_matches(True))
+
+        # The controller has to wait the in-flight change out rather than call
+        # UpdateDomainConfig mid-change.
+        k8s.patch_custom_resource(
+            ref,
+            {"spec": {"softwareUpdateOptions": {"autoSoftwareUpdateEnabled": True}}},
+        )
+        domain.wait_until(
+            resource.name,
+            domain.processing_matches(False),
+            on_poll=lambda: assert_not_terminal(ref),
+        )
+
+        domain.wait_until(
+            resource.name,
+            domain.auto_software_update_matches(True),
+            on_poll=lambda: assert_not_terminal(ref),
+        )
+
+        assert k8s.wait_on_condition(ref, "ACK.ResourceSynced", "True", wait_periods=30)
+        assert_not_terminal(ref)
+
+        latest = domain.get(resource.name)
+        assert latest['DomainStatus']['EBSOptions']['VolumeSize'] == 20
+        assert latest['DomainStatus']['SoftwareUpdateOptions']['AutoSoftwareUpdateEnabled'] is True
+
     def test_create_delete_tags_es_7_9(self, es_7_9_domain):
         ref, resource = es_7_9_domain
         modify_wait_after_seconds = 5

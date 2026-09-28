@@ -18,12 +18,13 @@ import time
 
 import pytest
 
-from e2e import opensearch_client
+from e2e import opensearch_client, retries_on_throttle
 
 DEFAULT_WAIT_UNTIL_TIMEOUT_SECONDS = 60*5
 DEFAULT_WAIT_UNTIL_INTERVAL_SECONDS = 15
 
 
+@retries_on_throttle
 def _authorized_principal_list(domain_name):
     c = opensearch_client()
     entries = []

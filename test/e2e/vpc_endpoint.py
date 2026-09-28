@@ -19,7 +19,7 @@ import typing
 
 import pytest
 
-from e2e import opensearch_client
+from e2e import opensearch_client, retries_on_throttle
 
 DEFAULT_WAIT_UNTIL_TIMEOUT_SECONDS = 60*15
 DEFAULT_WAIT_UNTIL_INTERVAL_SECONDS = 15
@@ -81,6 +81,7 @@ def wait_until_deleted(
             break
 
 
+@retries_on_throttle
 def get(vpc_endpoint_id):
     """Returns a dict containing the VpcEndpoint record from the OpenSearch
     API.
