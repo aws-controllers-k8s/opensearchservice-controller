@@ -78,10 +78,10 @@ func checkDomainStatus(resp *svcsdk.DescribeDomainOutput, ko *svcapitypes.Domain
 		ko.Spec.AutoTuneOptions.DesiredState = aws.String(string(resp.DomainStatus.AutoTuneOptions.State))
 	}
 
-	if domainProcessing(&resource{ko}) {
+	if domainChangeInFlight(&resource{ko}) {
 		// Setting resource synced condition to false will trigger a requeue of
 		// the resource. No need to return a requeue error here.
-		msg := "domain is currently processing changes"
+		msg := "domain has a configuration change or version upgrade in flight"
 		ackcondition.SetSynced(&resource{ko}, corev1.ConditionFalse, &msg, &msg)
 	}
 }
@@ -93,6 +93,13 @@ func domainProcessing(r *resource) bool {
 		return false
 	}
 	return *r.ko.Status.Processing
+}
+
+// domainChangeInFlight returns true if the supplied domain has a configuration
+// change or a version upgrade in flight, either of which AWS rejects
+// UpdateDomainConfig during. AWS reports the two through separate fields.
+func domainChangeInFlight(r *resource) bool {
+	return domainProcessing(r) || aws.ToBool(r.ko.Status.UpgradeProcessing)
 }
 
 func isAutoTuneOptionReady(state string, errorMessage *string) (bool, error) {
@@ -157,6 +164,11 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 	res := desired.ko.DeepCopy()
 	updated = &resource{res}
 	updated.SetStatus(latest)
+
+	// IsSynced keys on DomainProcessingStatus, which lags these in-flight fields.
+	if domainChangeInFlight(latest) {
+		return updated, requeueWaitWhileProcessing
+	}
 
 	isSynced, err := rm.IsSynced(ctx, latest)
 	if err != nil {

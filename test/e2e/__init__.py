@@ -12,6 +12,8 @@
 # permissions and limitations under the License.
 
 import functools
+import logging
+import time
 import pytest
 from typing import Dict, Any
 from pathlib import Path
@@ -48,6 +50,38 @@ def is_throttling_error(err: BaseException) -> bool:
         isinstance(err, ClientError)
         and err.response.get("Error", {}).get("Code") in THROTTLE_CODES
     )
+
+
+THROTTLE_ATTEMPTS = 5
+THROTTLE_BACKOFF_SECONDS = 5
+MAX_THROTTLE_BACKOFF_SECONDS = 30
+
+
+def retries_on_throttle(fn):
+    """Retries fn with capped exponential backoff while the API throttles.
+
+    The OpenSearch configuration APIs share a low per-account rate limit that
+    the controller under test also draws on, so the RETRY_CONFIG attempts above
+    can be exhausted before a describe call from the test gets through.
+    """
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        for attempt in range(THROTTLE_ATTEMPTS):
+            try:
+                return fn(*args, **kwargs)
+            except ClientError as e:
+                last = attempt == THROTTLE_ATTEMPTS - 1
+                if last or not is_throttling_error(e):
+                    raise
+                backoff = min(
+                    THROTTLE_BACKOFF_SECONDS * (2 ** attempt),
+                    MAX_THROTTLE_BACKOFF_SECONDS,
+                )
+                logging.info(
+                    f"throttled calling {fn.__name__}, retrying in {backoff}s"
+                )
+                time.sleep(backoff)
+    return wrapper
 
 
 @functools.lru_cache

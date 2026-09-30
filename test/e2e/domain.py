@@ -20,7 +20,7 @@ import typing
 import pytest
 from botocore.exceptions import ClientError
 
-from e2e import is_throttling_error, opensearch_client
+from e2e import is_throttling_error, opensearch_client, retries_on_throttle
 
 DEFAULT_WAIT_UNTIL_TIMEOUT_SECONDS = 60*30
 DEFAULT_WAIT_UNTIL_INTERVAL_SECONDS = 20
@@ -47,6 +47,21 @@ def processing_matches(processing: bool) -> DomainMatchFunc:
     return ProcessingMatcher(processing)
 
 
+class AutoSoftwareUpdateMatcher:
+    def __init__(self, enabled: bool):
+        self.match_on = enabled
+
+    def __call__(self, record: dict) -> bool:
+        if record is None or 'DomainStatus' not in record:
+            return False
+        opts = record['DomainStatus'].get('SoftwareUpdateOptions', {})
+        return opts.get('AutoSoftwareUpdateEnabled') == self.match_on
+
+
+def auto_software_update_matches(enabled: bool) -> DomainMatchFunc:
+    return AutoSoftwareUpdateMatcher(enabled)
+
+
 # Distinguishes "rate limited, unknown" from None, which means "definitively absent".
 _THROTTLED = object()
 
@@ -65,9 +80,13 @@ def wait_until(
         match_fn: DomainMatchFunc,
         timeout_seconds: int = DEFAULT_WAIT_UNTIL_TIMEOUT_SECONDS,
         interval_seconds: int = DEFAULT_WAIT_UNTIL_INTERVAL_SECONDS,
+        on_poll: typing.Optional[typing.Callable[[], None]] = None,
     ) -> None:
     """Waits until a domain with a supplied name is returned from the
     OpenSearch API and the matching functor returns True.
+
+    `on_poll`, if supplied, is invoked once per unmatched poll, letting callers
+    assert an invariant that must hold for the whole wait.
 
     Usage:
         from e2e.domain import wait_until, processing_matches
@@ -87,6 +106,8 @@ def wait_until(
         latest = _get_tolerating_throttle(domain_name)
         if latest is not _THROTTLED and match_fn(latest):
             return
+        if on_poll is not None:
+            on_poll()
         if datetime.datetime.now() >= timeout:
             pytest.fail(
                 f"failed to match domain {domain_name} before timeout"
@@ -134,6 +155,7 @@ def wait_until_deleted(
             )
 
 
+@retries_on_throttle
 def get(domain_name):
     """Returns a dict containing the domain record from the OpenSearch API.
 
@@ -147,6 +169,7 @@ def get(domain_name):
     except c.exceptions.ResourceNotFoundException:
         return None
 
+@retries_on_throttle
 def get_config(domain_name):
     """Returns a dict containing the domain config from the OpenSearch API.
 
@@ -160,6 +183,7 @@ def get_config(domain_name):
     except c.exceptions.ResourceNotFoundException:
         return None
       
+@retries_on_throttle
 def list_tags(domain_arn):
     """Returns a dict containing the tags for the domain from the OpenSearch API.
 
