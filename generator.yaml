@@ -109,6 +109,15 @@ resources:
           is_ignored: true
       AdvancedSecurityOptions.MasterUserOptions.MasterUserPassword:
         is_secret: true
+      # DescribeDomain does not return SAMLOptions.MasterBackendRole or
+      # MasterUserName either: the API models them on SAMLOptionsInput
+      # but not on SAMLOptionsOutput. Same fix as MasterUserOptions above.
+      AdvancedSecurityOptions.SAMLOptions.MasterBackendRole:
+        compare:
+          is_ignored: true
+      AdvancedSecurityOptions.SAMLOptions.MasterUserName:
+        compare:
+          is_ignored: true
       AutoTuneOptions.MaintenanceSchedules:
         compare:
           is_ignored: true
