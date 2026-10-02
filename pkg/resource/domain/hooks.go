@@ -17,6 +17,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
 	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
@@ -26,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	svcsdk "github.com/aws/aws-sdk-go-v2/service/opensearch"
 	svcsdktypes "github.com/aws/aws-sdk-go-v2/service/opensearch/types"
+	"github.com/aws/smithy-go"
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,7 +51,28 @@ var (
 		errors.New("autoTuneOption is updating"),
 		ackrequeue.DefaultRequeueAfterDuration,
 	)
+	requeueWaitChangeAlreadyInProgress = ackrequeue.NeededAfter(
+		errors.New("AWS rejected the change; another change is already in progress on the domain"),
+		ackrequeue.DefaultRequeueAfterDuration,
+	)
 )
+
+// changeInProgressMessage is the ValidationException text AWS returns when the
+// domain already has a configuration change or service software update running.
+const changeInProgressMessage = "A change/update is in progress"
+
+// isChangeAlreadyInProgress reports whether err is the transient
+// ValidationException AWS returns when another change is already running on the
+// domain. The error code alone cannot be used: ValidationException is also
+// returned for genuinely invalid specs, which must stay terminal.
+func isChangeAlreadyInProgress(err error) bool {
+	var apiErr smithy.APIError
+	if !errors.As(err, &apiErr) {
+		return false
+	}
+	return apiErr.ErrorCode() == "ValidationException" &&
+		strings.Contains(apiErr.ErrorMessage(), changeInProgressMessage)
+}
 
 var syncTags = sync.Tags
 var getTags = sync.GetTags
@@ -203,6 +226,9 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 		})
 		rm.metrics.RecordAPICall("UPGRADE", "UpgradeDomain", err)
 		if err != nil {
+			if isChangeAlreadyInProgress(err) {
+				return updated, requeueWaitChangeAlreadyInProgress
+			}
 			return nil, err
 		}
 
@@ -249,6 +275,9 @@ func (rm *resourceManager) customUpdateDomain(ctx context.Context, desired, late
 	resp, err := rm.sdkapi.UpdateDomainConfig(ctx, input)
 	rm.metrics.RecordAPICall("UPDATE", "UpdateDomainConfig", err)
 	if err != nil {
+		if isChangeAlreadyInProgress(err) {
+			return updated, requeueWaitChangeAlreadyInProgress
+		}
 		return updated, err
 	}
 
