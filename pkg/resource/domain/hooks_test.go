@@ -79,3 +79,60 @@ func TestIsChangeAlreadyInProgress(t *testing.T) {
 }
 
 func awsString(s string) *string { return &s }
+
+func TestIsServiceLinkedRoleMissing(t *testing.T) {
+	const slrMessage = "Before you can proceed, you must enable a service-linked role to give Amazon OpenSearch Service permissions to access your VPC."
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "nil error",
+			err:  nil,
+			want: false,
+		},
+		{
+			name: "missing service-linked role is transient",
+			err:  &svcsdktypes.ValidationException{Message: awsString(slrMessage)},
+			want: true,
+		},
+		{
+			name: "wrapped missing service-linked role is transient",
+			err: fmt.Errorf("operation error OpenSearch: CreateDomain: %w",
+				&svcsdktypes.ValidationException{Message: awsString(slrMessage)}),
+			want: true,
+		},
+		{
+			name: "invalid spec stays terminal",
+			err: &svcsdktypes.ValidationException{
+				Message: awsString("You must choose an even number of data nodes for a two Availability Zone deployment"),
+			},
+			want: false,
+		},
+		{
+			name: "other API error code is not matched",
+			err: &smithy.GenericAPIError{
+				Code:    "AccessDeniedException",
+				Message: slrMessage,
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isServiceLinkedRoleMissing(tt.err); got != tt.want {
+				t.Errorf("isServiceLinkedRoleMissing() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// The requeue error must not unwrap to the AWS error, or updateConditions
+// would still mark the resource terminal.
+func TestRequeueWaitServiceLinkedRoleIsNotTerminal(t *testing.T) {
+	rm := &resourceManager{}
+	if rm.terminalAWSError(requeueWaitServiceLinkedRole) {
+		t.Fatal("requeueWaitServiceLinkedRole is classified as a terminal AWS error")
+	}
+}

@@ -602,6 +602,11 @@ func (rm *resourceManager) sdkCreate(
 	var resp *svcsdk.CreateDomainOutput
 	_ = resp
 	resp, err = rm.sdkapi.CreateDomain(ctx, input)
+	if err != nil && isServiceLinkedRoleMissing(err) {
+		rm.metrics.RecordAPICall("CREATE", "CreateDomain", err)
+		return nil, requeueWaitServiceLinkedRole
+	}
+
 	rm.metrics.RecordAPICall("CREATE", "CreateDomain", err)
 	if err != nil {
 		return nil, err
