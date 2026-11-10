@@ -1,5 +1,5 @@
 ack_generate_info:
-  build_date: "2026-10-23T21:42:19Z"
+  build_date: "2026-11-06T22:09:57Z"
   build_hash: 5a7bcc2cc51b71344ec1f64d235e158731970bea
   go_version: go1.27.3
   version: v0.67.0
@@ -7,7 +7,7 @@ api_directory_checksum: 7b60e89517612709f74fc48bb38c32a814f8c651
 api_version: v1alpha1
 aws_service_sdk_version: v1.78.0
 generator_config_info:
-  file_checksum: c7c7c885cdc52bf307e7820c5d27cfc8138cc32e
+  file_checksum: 58c69652533e1a08a58651cca4e4d50105fc6b7d
   original_file_name: generator.yaml
 last_modification:
   reason: API generation

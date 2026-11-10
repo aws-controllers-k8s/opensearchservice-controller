@@ -55,23 +55,44 @@ var (
 		errors.New("AWS rejected the change; another change is already in progress on the domain"),
 		ackrequeue.DefaultRequeueAfterDuration,
 	)
+	// Must not wrap the AWS error: terminalAWSError unwraps it and would
+	// still mark the resource terminal.
+	requeueWaitServiceLinkedRole = ackrequeue.NeededAfter(
+		errors.New("waiting for the OpenSearch service-linked role that AWS creates on the first VPC domain create"),
+		ackrequeue.DefaultRequeueAfterDuration,
+	)
 )
 
 // changeInProgressMessage is the ValidationException text AWS returns when the
 // domain already has a configuration change or service software update running.
 const changeInProgressMessage = "A change/update is in progress"
 
+// serviceLinkedRoleMessage is the ValidationException text CreateDomain returns
+// for a VPC domain when the account has no OpenSearch service-linked role yet.
+// AWS creates the role during that call, so a retry succeeds.
+const serviceLinkedRoleMessage = "enable a service-linked role"
+
 // isChangeAlreadyInProgress reports whether err is the transient
 // ValidationException AWS returns when another change is already running on the
 // domain. The error code alone cannot be used: ValidationException is also
 // returned for genuinely invalid specs, which must stay terminal.
 func isChangeAlreadyInProgress(err error) bool {
+	return isValidationExceptionContaining(err, changeInProgressMessage)
+}
+
+// isServiceLinkedRoleMissing reports whether err is the transient
+// ValidationException CreateDomain returns before the service-linked role exists.
+func isServiceLinkedRoleMissing(err error) bool {
+	return isValidationExceptionContaining(err, serviceLinkedRoleMessage)
+}
+
+func isValidationExceptionContaining(err error, msg string) bool {
 	var apiErr smithy.APIError
 	if !errors.As(err, &apiErr) {
 		return false
 	}
 	return apiErr.ErrorCode() == "ValidationException" &&
-		strings.Contains(apiErr.ErrorMessage(), changeInProgressMessage)
+		strings.Contains(apiErr.ErrorMessage(), msg)
 }
 
 var syncTags = sync.Tags
